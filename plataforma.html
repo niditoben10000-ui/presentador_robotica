@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AURORA 3D — Haciendo visible lo que antes no se entendía</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#06080f;--bg-card:#0e1322;--bg-modal:#131a2e;--bg-input:#182040;--accent:#3b82f6;--cyan:#06b6d4;--aurora1:#3b82f6;--aurora2:#06b6d4;--aurora3:#a855f7;--hotspot:#f59e0b;--hotspot-glow:rgba(245,158,11,.4);--label-color:#06b6d4;--label-glow:rgba(6,182,212,.4);--text:#f1f5f9;--text-dim:#94a3b8;--danger:#ef4444;--success:#22c55e;--radius:12px;--sidebar-w:340px}
+    html,body{height:100%;width:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+    #app{display:flex;height:100dvh;width:100%}button{font-family:inherit}
+
+    #splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;transition:opacity 1s,visibility 1s}
+    #splash.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    #splash img{max-width:min(80vw,500px);margin-bottom:2rem;animation:fadeUp 1.2s ease}
+    #splash .enter-btn{padding:.9rem 2.5rem;font-size:1rem;font-weight:700;border:none;border-radius:50px;background:linear-gradient(135deg,var(--aurora1),var(--aurora2),var(--aurora3));color:#fff;cursor:pointer;box-shadow:0 4px 30px rgba(59,130,246,.3);animation:fadeUp 1.5s ease;transition:transform .2s,box-shadow .2s}
+    #splash .enter-btn:hover{transform:scale(1.05);box-shadow:0 8px 40px rgba(59,130,246,.5)}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+    #sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-card);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;overflow:hidden;z-index:20;transition:margin-left .3s}
+    #sidebar.collapsed{margin-left:calc(var(--sidebar-w)*-1)}
+    .sidebar-header{padding:.8rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+    .sidebar-brand{font-size:.95rem;font-weight:900;letter-spacing:.04em;background:linear-gradient(135deg,var(--aurora1),var(--aurora2),var(--aurora3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .sidebar-close{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.06);color:var(--text-dim);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .sidebar-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+    .tab-btn{flex:1;padding:.6rem 0;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:none;background:none;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+    .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .sidebar-body{flex:1;overflow-y:auto;scrollbar-width:thin}
+    .sidebar-body::-webkit-scrollbar{width:4px}.sidebar-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .tab-panel{display:none;padding:1rem}.tab-panel.active{display:block}
+    .section{margin-bottom:1.2rem}
+    .section-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:.6rem}
+    .btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.55rem .8rem;border-radius:var(--radius);font-size:.78rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text-dim);transition:all .2s}
+    .btn:hover{background:rgba(255,255,255,.08);color:var(--text)}.btn:active{transform:scale(.98)}
+    .btn-primary{background:linear-gradient(135deg,var(--accent),var(--cyan));border-color:transparent;color:#fff}
+    .btn-danger{border-color:rgba(239,68,68,.3);color:var(--danger)}
+    .btn-success{border-color:rgba(34,197,94,.3);color:var(--success)}
+    .btn-publish{background:linear-gradient(135deg,var(--aurora3),var(--aurora1));border-color:transparent;color:#fff}
+    .btn-sm{padding:.4rem .6rem;font-size:.72rem}
+    .btn-row{display:flex;gap:.4rem}.btn-row .btn{flex:1}
+    .form-group{margin-bottom:.7rem}
+    .form-label{display:block;font-size:.68rem;font-weight:600;color:var(--text-dim);margin-bottom:.25rem}
+    .form-input,.form-textarea{width:100%;padding:.5rem .7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:var(--bg-input);color:var(--text);font-family:inherit;font-size:.8rem}
+    .form-input:focus,.form-textarea:focus{outline:none;border-color:var(--accent)}
+    .form-textarea{resize:vertical;min-height:50px}
+    .form-select{width:100%;padding:.5rem .7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:var(--bg-input);color:var(--text);font-family:inherit;font-size:.8rem}
+    .dropzone{border:2px dashed rgba(255,255,255,.12);border-radius:var(--radius);padding:1.2rem .8rem;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+    .dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:rgba(59,130,246,.06)}
+    .dropzone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .dropzone-icon{font-size:1.8rem;margin-bottom:.4rem;opacity:.5}
+    .dropzone-text{font-size:.78rem;color:var(--text-dim)}.dropzone-text strong{color:var(--accent)}
+    .dropzone-hint{font-size:.65rem;color:var(--text-dim);margin-top:.2rem;opacity:.6}
+    .model-loaded{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border-radius:var(--radius);background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);margin-bottom:.6rem}
+    .model-loaded .dot{width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0}
+    .model-loaded .info{font-size:.72rem;color:var(--success);font-weight:600}
+    .model-loaded .detail{font-size:.65rem;color:var(--text-dim)}
+    .item-row{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);margin-bottom:.35rem;font-size:.75rem;transition:background .15s}
+    .item-row:hover{background:rgba(255,255,255,.05)}
+    .item-check{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+    .item-icon{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:#111}
+    .item-icon.comp{background:var(--hotspot)}.item-icon.label{background:var(--label-color);width:14px;height:14px;font-size:0}
+    .item-info{flex:1;min-width:0}.item-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item-meta{font-size:.6rem;color:var(--text-dim)}
+    .item-actions{display:flex;gap:.2rem}
+    .ia-btn{width:22px;height:22px;border-radius:5px;border:none;background:rgba(255,255,255,.05);color:var(--text-dim);font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .ia-btn:hover{background:rgba(255,255,255,.1)}.ia-btn.del:hover{background:rgba(239,68,68,.2);color:var(--danger)}
+    .group-card{border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);margin-bottom:.6rem;overflow:hidden}
+    .group-header{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;background:rgba(255,255,255,.03);cursor:pointer}
+    .group-header .group-check{width:16px;height:16px;accent-color:var(--aurora3);cursor:pointer}
+    .group-header .group-name{flex:1;font-size:.78rem;font-weight:700}
+    .group-header .group-count{font-size:.65rem;color:var(--text-dim)}.group-header .ia-btn{flex-shrink:0}
+    .group-items{padding:.3rem .5rem .5rem}
+    .projects-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .project-card{border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden;cursor:pointer;transition:all .2s;background:var(--bg)}
+    .project-card:hover{border-color:var(--accent);transform:scale(1.02)}
+    .project-thumb{width:100%;aspect-ratio:16/10;background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(168,85,247,.1));display:flex;align-items:center;justify-content:center;font-size:2rem;opacity:.4}
+    .project-card-info{padding:.4rem .5rem}.project-card-name{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .project-card-date{font-size:.6rem;color:var(--text-dim)}.project-card-actions{display:flex;gap:.3rem;padding:0 .5rem .4rem}
+    .empty-msg{text-align:center;padding:1.5rem .5rem;font-size:.78rem;color:var(--text-dim);opacity:.5}
+    .sidebar-footer{padding:.6rem 1rem;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:.4rem;flex-shrink:0;flex-wrap:wrap}
+
+    #main-area{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:.45rem 1rem;background:var(--bg-card);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;z-index:10}
+    .topbar-left{display:flex;align-items:center;gap:.6rem}.topbar-right{display:flex;align-items:center;gap:.5rem}
+    .toggle-sidebar-btn{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text-dim);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .project-name-top{font-weight:700;font-size:.9rem}
+    .status-badge{padding:.2rem .6rem;border-radius:50px;font-size:.65rem;font-weight:700}
+    .badge-edit{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--hotspot)}
+    .badge-present{background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:var(--aurora3)}
+    #scene-container{flex:1;position:relative;overflow:hidden}
+    #canvas{width:100%;height:100%;display:block;touch-action:none}
+    #hotspot-layer{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+    .welcome-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:3;text-align:center;padding:2rem}
+    .welcome-screen.hidden{display:none}.welcome-screen img{max-width:200px;opacity:.3;margin-bottom:1rem}
+    .welcome-screen p{font-size:.85rem;color:var(--text-dim);max-width:350px}
+    .loading-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,8,15,.85);z-index:4}
+    .loading-overlay.visible{display:flex}
+    .load-spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}.load-text{margin-top:.8rem;font-size:.85rem;color:var(--text-dim)}
+    .hs-3d{position:absolute;transform:translateY(-50%);display:flex;align-items:center;gap:.35rem;pointer-events:auto;cursor:pointer;border:none;background:none;padding:0;transition:opacity .3s;z-index:6}
+    .hs-3d.hs-comp{margin-left:-18px}.hs-3d.hs-label{margin-left:-7px}
+    .hs-3d.behind{opacity:0;pointer-events:none}.hs-3d.hidden-item{display:none!important}
+    .hs-3d .dot{border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-weight:800;color:#111;flex-shrink:0}
+    .hs-3d .dot.comp-dot{width:36px;height:36px;font-size:.8rem;background:var(--hotspot);box-shadow:0 0 0 0 var(--hotspot-glow);animation:pulse3d 2.5s ease-in-out infinite}
+    .hs-3d .dot.label-dot{width:14px;height:14px;font-size:0;background:var(--label-color);box-shadow:0 0 0 0 var(--label-glow);animation:pulseLabel 2.5s ease-in-out infinite}
+    .hs-3d .tag{background:var(--bg-card);border:1px solid rgba(255,255,255,.12);padding:.2rem .55rem;border-radius:6px;font-family:'Inter',sans-serif;font-size:.68rem;font-weight:600;color:var(--text);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+    @keyframes pulse3d{0%{box-shadow:0 0 0 0 var(--hotspot-glow)}50%{box-shadow:0 0 0 10px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+    @keyframes pulseLabel{0%{box-shadow:0 0 0 0 var(--label-glow)}50%{box-shadow:0 0 0 8px rgba(6,182,212,0)}100%{box-shadow:0 0 0 0 rgba(6,182,212,0)}}
+    #desc-popup{position:fixed;z-index:60;background:var(--bg-modal);border:1px solid rgba(6,182,212,.3);border-radius:12px;padding:.8rem 1rem;max-width:280px;min-width:160px;display:none;box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 20px rgba(6,182,212,.1)}
+    #desc-popup.show{display:block}
+    #desc-popup .dp-title{font-size:.82rem;font-weight:700;margin-bottom:.3rem;color:var(--label-color)}
+    #desc-popup .dp-text{font-size:.78rem;color:var(--text-dim);line-height:1.45}
+    #desc-popup .dp-close{position:absolute;top:6px;right:8px;width:20px;height:20px;border:none;background:none;color:var(--text-dim);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    #explode-panel{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:.5rem;background:var(--bg-card);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:.45rem .8rem;z-index:8;box-shadow:0 8px 30px rgba(0,0,0,.5);flex-wrap:wrap;justify-content:center}
+    #explode-panel.visible{display:flex}
+    #explode-panel label{font-size:.7rem;font-weight:600;color:var(--text-dim);white-space:nowrap}
+    #explode-slider{width:120px;height:5px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:3px;outline:none;cursor:pointer}
+    #explode-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--accent);border-radius:50%;border:2px solid var(--bg-card);cursor:grab}
+    #explode-pct{font-size:.7rem;font-weight:700;color:var(--accent);min-width:28px;text-align:right}
+    .explode-btn{padding:.35rem .7rem;border-radius:50px;border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.15);color:var(--accent);font-size:.68rem;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap}
+    .explode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    #explode-group-sel{padding:.3rem .5rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:var(--bg-input);color:var(--text);font-family:inherit;font-size:.68rem;max-width:120px}
+    #innov-panel{position:absolute;top:12px;right:12px;z-index:8;background:rgba(14,19,34,.85);backdrop-filter:blur(12px);border:1px solid rgba(245,158,11,.15);border-radius:14px;min-width:180px;max-width:260px;overflow:hidden;transition:all .3s;display:none}
+    #innov-panel.visible{display:block}
+    #innov-panel.collapsed .innov-list{display:none}
+    .innov-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;cursor:pointer;user-select:none}
+    .innov-title{font-size:.72rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;background:linear-gradient(135deg,var(--hotspot),#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .innov-toggle{font-size:.7rem;color:var(--text-dim);transition:transform .3s}
+    #innov-panel.collapsed .innov-toggle{transform:rotate(-90deg)}
+    .innov-list{padding:0 .4rem .5rem}
+    .innov-item{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:8px;cursor:pointer;transition:background .15s;font-size:.75rem}
+    .innov-item:hover{background:rgba(245,158,11,.12)}
+    .innov-num{width:26px;height:26px;border-radius:50%;background:var(--hotspot);color:#111;font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(245,158,11,.3)}
+    .innov-name{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .placing-msg{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:.45rem 1rem;border-radius:50px;font-size:.78rem;font-weight:700;z-index:8;display:none;box-shadow:0 4px 15px rgba(0,0,0,.4)}
+    .placing-msg.visible{display:block}.placing-msg.comp-mode{background:var(--hotspot);color:#111}.placing-msg.label-mode{background:var(--label-color);color:#111}
+    #modal-overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
+    #modal-overlay.open{opacity:1;visibility:visible}
+    .modal-card{width:min(92vw,700px);max-height:90dvh;background:var(--bg-modal);border-radius:16px;border:1px solid rgba(255,255,255,.08);overflow:hidden;transform:translateY(30px) scale(.95);transition:transform .4s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column}
+    #modal-overlay.open .modal-card{transform:translateY(0) scale(1)}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .modal-header-left{display:flex;align-items:center;gap:.6rem}
+    .modal-number{width:30px;height:30px;border-radius:50%;background:var(--hotspot);color:#111;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+    .modal-title{font-size:1rem;font-weight:700}
+    .modal-close{width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:var(--text-dim);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .modal-video-wrapper{position:relative;background:#000;aspect-ratio:16/9;width:100%}
+    .modal-video-wrapper video{width:100%;height:100%;object-fit:contain;display:block}
+    .video-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.6);transition:opacity .3s}
+    .video-loading.hidden{opacity:0;pointer-events:none}
+    .video-loading .spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    .video-error{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.8);color:var(--danger);font-size:.8rem;text-align:center}
+    .video-error.show{display:flex}
+    .modal-body{padding:.8rem 1.2rem 1.2rem;overflow-y:auto}.modal-description{color:var(--text-dim);font-size:.85rem;line-height:1.5}
+    .edit-overlay{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
+    .edit-overlay.open{display:flex}
+    .edit-card{width:min(90vw,440px);background:var(--bg-modal);border-radius:16px;border:1px solid rgba(255,255,255,.08);padding:1.3rem}
+    .edit-card h3{font-size:.95rem;font-weight:700;margin-bottom:1rem}
+
+    /* ═══ PUBLISH MODAL ═══ */
+    .pub-step{display:none}.pub-step.active{display:block}
+    .pub-progress-list{list-style:none;margin:.8rem 0}
+    .pub-progress-list li{padding:.35rem 0;font-size:.78rem;color:var(--text-dim);display:flex;align-items:center;gap:.5rem}
+    .pub-progress-list li.done{color:var(--success)}
+    .pub-progress-list li.doing{color:var(--accent)}
+    .pub-progress-list li.fail{color:var(--danger)}
+    .pub-progress-list .icon{width:18px;text-align:center;flex-shrink:0}
+    .pub-qr{margin:1rem auto;background:#fff;padding:12px;border-radius:12px;display:inline-block}
+    .pub-qr img{display:block;width:200px;height:200px}
+    .pub-url{font-size:.7rem;color:var(--accent);word-break:break-all;margin:.5rem 0;text-align:center}
+    .pub-help{font-size:.68rem;color:var(--text-dim);line-height:1.5;margin-top:.6rem;padding:.6rem;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(255,255,255,.05)}
+    .pub-help strong{color:var(--text)}
+
+    @media(max-width:768px){#sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30}}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="splash"><img src="assets/aurora-logo.png" alt="AURORA 3D"><button class="enter-btn" id="enter-btn">Iniciar</button></div>
+
+    <aside id="sidebar">
+      <div class="sidebar-header"><span class="sidebar-brand">AURORA 3D</span><button class="sidebar-close" id="close-sidebar">✕</button></div>
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" data-tab="model">Modelo</button>
+        <button class="tab-btn" data-tab="items">Editor</button>
+        <button class="tab-btn" data-tab="groups">Grupos</button>
+        <button class="tab-btn" data-tab="projects">Proyectos</button>
+      </div>
+      <div class="sidebar-body">
+        <div class="tab-panel active" id="panel-model">
+          <div class="section"><div class="section-title">Modelo 3D</div><div id="model-status"></div>
+            <div class="dropzone" id="dropzone"><input type="file" id="file-input" accept=".obj,.glb,.gltf,.dae,.mtl" multiple><div class="dropzone-icon">📦</div><div class="dropzone-text">Arrastra <strong>.OBJ + .MTL</strong> aquí</div><div class="dropzone-hint">También acepta .GLB, .GLTF, .DAE</div></div>
+          </div>
+          <div class="section"><div class="section-title">Proyecto</div>
+            <div class="form-group"><label class="form-label">Nombre</label><input type="text" class="form-input" id="project-name" value="Mi Robot FLL"></div>
+            <div class="form-group"><label class="form-label">URL base Cloudinary</label><input type="text" class="form-input" id="cloudinary-base" placeholder="https://res.cloudinary.com/..."></div>
+          </div>
+        </div>
+        <div class="tab-panel" id="panel-items">
+          <div class="section"><div class="section-title">Innovaciones (con video/imagen)</div><button class="btn btn-primary btn-sm" id="add-comp-btn" style="margin-bottom:.6rem">+ Innovación</button><div id="comp-list"></div></div>
+          <div class="section"><div class="section-title">Etiquetas (anotaciones)</div><button class="btn btn-sm" id="add-label-btn" style="margin-bottom:.6rem;border-color:rgba(6,182,212,.3);color:var(--label-color)">+ Etiqueta</button><div id="label-list"></div></div>
+        </div>
+        <div class="tab-panel" id="panel-groups">
+          <div class="section"><div class="section-title">Agrupamientos</div><button class="btn btn-sm" id="add-group-btn" style="margin-bottom:.6rem;border-color:rgba(168,85,247,.3);color:var(--aurora3)">+ Nuevo Grupo</button><div id="group-list"></div></div>
+          <div class="section"><div class="section-title">Visibilidad rápida</div><div class="btn-row"><button class="btn btn-sm" id="show-all-btn">Mostrar Todo</button><button class="btn btn-sm" id="hide-all-btn">Ocultar Todo</button></div></div>
+        </div>
+        <div class="tab-panel" id="panel-projects">
+          <div class="section"><div class="section-title">Proyectos Guardados</div><div id="projects-grid" class="projects-grid"></div><div class="empty-msg" id="projects-empty">No hay proyectos guardados aún.</div></div>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button class="btn btn-success btn-sm" id="save-btn">💾 Guardar</button>
+        <button class="btn btn-sm" id="import-btn">📥 Importar .json</button>
+        <button class="btn btn-sm" id="export-btn">📤 Exportar</button>
+        <button class="btn btn-publish btn-sm" id="publish-btn">🚀 Publicar</button>
+        <button class="btn btn-sm" id="present-btn">🎬 Presentar</button>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+    </aside>
+
+    <div id="main-area">
+      <div class="topbar"><div class="topbar-left"><button class="toggle-sidebar-btn" id="open-sidebar">☰</button><span class="project-name-top" id="topbar-name">Mi Robot FLL</span></div><div class="topbar-right"><span class="status-badge badge-edit" id="mode-badge">EDICIÓN</span></div></div>
+      <div id="scene-container">
+        <canvas id="canvas"></canvas><div id="hotspot-layer"></div><div class="placing-msg" id="placing-msg"></div>
+        <div id="innov-panel"><div class="innov-header" id="innov-toggle-btn"><span class="innov-title">Innovaciones</span><span class="innov-toggle">▼</span></div><div class="innov-list" id="innov-list"></div></div>
+        <div id="explode-panel"><button class="explode-btn" id="explode-toggle">Despiece</button><select id="explode-group-sel"><option value="">Todos</option></select><label>Separación</label><input type="range" id="explode-slider" min="0" max="100" value="0"><span id="explode-pct">0%</span></div>
+        <div class="loading-overlay" id="loading-3d"><div class="load-spinner"></div><span class="load-text" id="load-text">Cargando...</span></div>
+        <div class="welcome-screen" id="welcome"><img src="assets/aurora-logo.png" alt="AURORA 3D"><p>Arrastra un modelo 3D (.OBJ + .MTL) desde el panel izquierdo para comenzar</p></div>
+      </div>
+    </div>
+
+    <div id="desc-popup"><button class="dp-close">×</button><div class="dp-title"></div><div class="dp-text"></div></div>
+
+    <div id="modal-overlay"><div class="modal-card"><div class="modal-header"><div class="modal-header-left"><span class="modal-number" id="modal-num"></span><span class="modal-title" id="modal-title"></span></div><button class="modal-close" id="modal-close">×</button></div><div class="modal-video-wrapper"><video id="modal-video" playsinline controls preload="none"></video><div class="video-loading" id="video-loading"><div class="spinner"></div><span>Cargando video...</span></div><div class="video-error" id="video-error"><span>No se pudo cargar el video.</span></div></div><div class="modal-body"><p class="modal-description" id="modal-desc"></p></div></div></div>
+
+    <div class="edit-overlay" id="edit-modal"><div class="edit-card"><h3 id="edit-title">Nuevo</h3><div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-input" id="ed-name"></div><div class="form-group" id="ed-desc-group"><label class="form-label">Descripción</label><textarea class="form-textarea" id="ed-desc"></textarea></div><div class="form-group" id="ed-video-group"><label class="form-label">Video/Imagen (URL directa Cloudinary)</label><input type="text" class="form-input" id="ed-video" placeholder="https://res.cloudinary.com/.../video/upload/..."></div><div class="form-group"><label class="form-label">Grupo (opcional)</label><select class="form-select" id="ed-group"><option value="">— Sin grupo —</option></select></div><div class="form-group"><label class="form-label">Posición 3D</label><input type="text" class="form-input" id="ed-pos" readonly style="opacity:.6"></div><div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="ed-cancel">Cancelar</button><button class="btn btn-primary btn-sm" id="ed-save">Guardar</button></div></div></div>
+
+    <div class="edit-overlay" id="group-modal"><div class="edit-card"><h3 id="grp-title">Nuevo Grupo</h3><div class="form-group"><label class="form-label">Nombre del Grupo *</label><input type="text" class="form-input" id="grp-name"></div><div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="grp-cancel">Cancelar</button><button class="btn btn-primary btn-sm" id="grp-save">Guardar</button></div></div></div>
+
+    <!-- Publish Modal -->
+    <div class="edit-overlay" id="publish-modal"><div class="edit-card">
+      <!-- Step 1: Config -->
+      <div class="pub-step active" id="pub-step-config">
+        <h3>Configurar GitHub</h3>
+        <div class="pub-help"><strong>Primera vez?</strong> Necesitas un token de GitHub para subir archivos.<br>1. Ve a github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)<br>2. Genera uno con permiso <strong>repo</strong><br>3. Pega el token aquí (se guarda solo en tu dispositivo)</div>
+        <div class="form-group" style="margin-top:.8rem"><label class="form-label">Repositorio (usuario/nombre)</label><input type="text" class="form-input" id="pub-repo" placeholder="artifextsp/PRESENTADORLEGO"></div>
+        <div class="form-group"><label class="form-label">Token de GitHub</label><input type="password" class="form-input" id="pub-token" placeholder="ghp_xxxxxxxxxxxx"></div>
+        <div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="pub-config-cancel">Cancelar</button><button class="btn btn-primary btn-sm" id="pub-config-next">Siguiente</button></div>
+      </div>
+      <!-- Step 2: Confirm -->
+      <div class="pub-step" id="pub-step-confirm">
+        <h3>Confirmar publicación</h3>
+        <div class="form-group"><label class="form-label">Nombre del proyecto</label><input type="text" class="form-input" id="pub-name" readonly></div>
+        <div class="form-group"><label class="form-label">Icono para la galería</label>
+          <select class="form-select" id="pub-icon"><option value="🤖">🤖 Robot</option><option value="⚙️">⚙️ Mecanismo</option><option value="🦾">🦾 Brazo</option><option value="🔧">🔧 Herramienta</option><option value="🏗️">🏗️ Estructura</option><option value="🎯">🎯 Prototipo</option><option value="🧩">🧩 Módulo</option><option value="💡">💡 Concepto</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Descripción breve</label><input type="text" class="form-input" id="pub-desc" placeholder="Robot principal de competencia"></div>
+        <div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="pub-confirm-back">Atrás</button><button class="btn btn-publish btn-sm" id="pub-confirm-go">Publicar</button></div>
+      </div>
+      <!-- Step 3: Progress -->
+      <div class="pub-step" id="pub-step-progress">
+        <h3>Publicando...</h3>
+        <ul class="pub-progress-list" id="pub-progress-list">
+          <li id="ps-glb"><span class="icon">⏳</span> Preparando</li>
+          <li id="ps-upload-glb"><span class="icon">⏳</span> Modelo verificado</li>
+          <li id="ps-upload-json"><span class="icon">⏳</span> Subiendo proyecto</li>
+          <li id="ps-manifest"><span class="icon">⏳</span> Actualizando galería</li>
+        </ul>
+      </div>
+      <!-- Step 4: Success -->
+      <div class="pub-step" id="pub-step-success">
+        <h3 style="color:var(--success)">Publicado</h3>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.5rem;text-align:center">Los jueces pueden acceder con este QR</p>
+        <div style="text-align:center"><div class="pub-qr"><img id="pub-qr-img" alt="QR"></div></div>
+        <div class="pub-url" id="pub-url-text"></div>
+        <div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="pub-done">Cerrar</button></div>
+      </div>
+      <!-- Step 5: Manual fallback -->
+      <div class="pub-step" id="pub-step-manual">
+        <h3>Publicar manualmente</h3>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.8rem">Tu navegador no puede conectar con la API de GitHub. Usa este método alternativo:</p>
+        <div class="btn-row" style="margin-bottom:.6rem"><button class="btn btn-primary btn-sm" id="pub-download-json">📥 Descargar JSON del proyecto</button></div>
+        <div class="pub-help">
+          <strong>Pasos:</strong><br>
+          1. Descarga el JSON con el botón de arriba<br>
+          2. Ve a tu repo en GitHub → Add file → Upload files<br>
+          3. Arrastra el .json descargado y haz commit<br>
+          4. El modelo GLB ya está en el repo ✅
+        </div>
+        <div style="margin-top:.8rem;text-align:center">
+          <p style="font-size:.72rem;color:var(--text-dim);margin-bottom:.4rem">QR para el visor:</p>
+          <div class="pub-qr"><img id="pub-qr-manual" alt="QR"></div>
+          <div class="pub-url" id="pub-url-manual"></div>
+        </div>
+        <div class="btn-row" style="margin-top:.8rem"><button class="btn btn-sm" id="pub-manual-done">Cerrar</button></div>
+      </div>
+    </div></div>
+  </div>
+
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"}}
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+    import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+    import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+    import {MTLLoader} from 'three/addons/loaders/MTLLoader.js';
+    import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
+    import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+
+    const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+
+    let model=null, loadedFiles={}, placingMode=null, editingIdx=-1, editingType='', currentModelFile='';
+    let components=[], labels=[], groups=[];
+    let overlayEls=[], overlayPos=[], overlayItems=[], overlayMeshMap=[];
+    let explodeParts=[], explodeAmount=0, explodeActive=false, explodeGroup='';
+
+    const container=$('#scene-container'), canvas=$('#canvas');
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(45,1,0.01,1000);camera.position.set(0,0.4,1.2);
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.5;renderer.outputColorSpace=THREE.SRGBColorSpace;
+    scene.add(new THREE.AmbientLight(0xffffff,0.8));
+    const d1=new THREE.DirectionalLight(0xffffff,1.2);d1.position.set(5,10,7);scene.add(d1);
+    const d2=new THREE.DirectionalLight(0xffffff,0.4);d2.position.set(-5,5,-5);scene.add(d2);
+    scene.add(new THREE.HemisphereLight(0x87CEEB,0x444444,0.5));
+    const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.08;
+    const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
+    function onResize(){const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}
+    window.addEventListener('resize',onResize);new ResizeObserver(onResize).observe(container);onResize();
+    (function anim(){requestAnimationFrame(anim);controls.update();renderer.render(scene,camera);updateOverlayPositions()})();
+    function parseVec3(s){const p=s.trim().split(/\s+/).map(Number);return new THREE.Vector3(p[0],p[1],p[2])}
+
+    // ─── Model Loading ───
+    function clearModel(){if(model){scene.remove(model);model=null}explodeParts=[];overlayMeshMap=[];$('#explode-panel').classList.remove('visible');$('#welcome').classList.remove('hidden')}
+    function centerAndScale(o){const b=new THREE.Box3().setFromObject(o),c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3()),m=Math.max(sz.x,sz.y,sz.z);if(!m)return;const s=0.6/m;o.position.sub(c.multiplyScalar(s));o.scale.multiplyScalar(s);const nb=new THREE.Box3().setFromObject(o),nc=nb.getCenter(new THREE.Vector3());controls.target.copy(nc);camera.position.set(nc.x,nc.y+0.36,nc.z+1.08)}
+    async function loadFromFiles(files){
+      for(const f of files)loadedFiles[f.name.toLowerCase()]=f;
+      const all=Object.values(loadedFiles);
+      const objF=all.find(f=>f.name.toLowerCase().endsWith('.obj'));const mtlF=all.find(f=>f.name.toLowerCase().endsWith('.mtl'));
+      const glbF=all.find(f=>f.name.toLowerCase().endsWith('.glb')||f.name.toLowerCase().endsWith('.gltf'));
+      const daeF=all.find(f=>f.name.toLowerCase().endsWith('.dae'));
+      if(files.length===1&&files[0].name.toLowerCase().endsWith('.mtl')&&!objF){$('#dropzone').querySelector('.dropzone-hint').textContent='✓ MTL cargado. Ahora carga el .OBJ';return}
+      if(!objF&&!glbF&&!daeF){alert('Carga un .OBJ, .GLB o .DAE');return}
+      $('#load-text').textContent='Cargando modelo 3D...';$('#loading-3d').classList.add('visible');
+      try{clearModel();if(glbF)model=await loadGLB(glbF);else if(objF)model=await loadOBJ(objF,mtlF);else if(daeF)model=await loadDAE(daeF);
+        scene.add(model);centerAndScale(model);setupExplode();$('#welcome').classList.add('hidden');
+        let mc=0,vc=0;model.traverse(c=>{if(c.isMesh){mc++;if(c.geometry?.attributes?.position)vc+=c.geometry.attributes.position.count}});
+        const mainFile=(objF||glbF||daeF).name;currentModelFile='assets/'+mainFile.replace(/\.(obj|dae)$/i,'.glb');
+        const nm=mainFile+(mtlF?' + colores':'');
+        $('#model-status').innerHTML=`<div class="model-loaded"><div class="dot"></div><div><div class="info">${nm}</div><div class="detail">${mc} partes · ${(vc/1000).toFixed(0)}K vértices</div></div></div>`;
+        rebuildOverlays();
+      }catch(e){alert('Error: '+e.message);console.error(e)}$('#loading-3d').classList.remove('visible');
+    }
+    function loadGLB(f){return new Promise((res,rej)=>{const u=URL.createObjectURL(f);new GLTFLoader().load(u,g=>{URL.revokeObjectURL(u);res(g.scene)},null,e=>{URL.revokeObjectURL(u);rej(e)})})}
+    function loadOBJ(of,mf){return new Promise(async(res,rej)=>{try{let mat=null;if(mf){mat=new MTLLoader().parse(await mf.text(),'');mat.preload()}const ol=new OBJLoader();if(mat)ol.setMaterials(mat);res(ol.parse(await of.text()))}catch(e){rej(e)}})}
+    function loadDAE(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const t=r.result.replace(/<RoundingEdgeNormal:enable>[^<]*<\/RoundingEdgeNormal:enable>/g,'');const u=URL.createObjectURL(new Blob([t],{type:'application/xml'}));new ColladaLoader().load(u,c=>{URL.revokeObjectURL(u);res(c.scene)},null,e=>{URL.revokeObjectURL(u);rej(e)})};r.readAsText(f)})}
+
+    // ─── GLB Export ───
+    function exportModelAsGLB(){
+      return new Promise((res,rej)=>{
+        if(!model){rej(new Error('No hay modelo'));return}
+        const savedExplode=explodeAmount;
+        if(savedExplode>0){explodeAmount=0;applyExplode()}
+        const exporter=new GLTFExporter();
+        exporter.parse(model,glb=>{
+          if(savedExplode>0){explodeAmount=savedExplode;applyExplode()}
+          res(glb);
+        },err=>{
+          if(savedExplode>0){explodeAmount=savedExplode;applyExplode()}
+          rej(err);
+        },{binary:true});
+      });
+    }
+
+    // ─── Explode ───
+    function setupExplode(){
+      if(!model)return;let meshes=[];model.traverse(c=>{if(c.isMesh)meshes.push(c)});
+      if(meshes.length===1&&meshes[0].geometry?.groups?.length>1){
+        const src=meshes[0],g=src.geometry.groups,sg=src.geometry,par=src.parent||model,pos=sg.attributes.position,norm=sg.attributes.normal,idx=sg.index;meshes=[];
+        g.forEach(gr=>{const ids=[];for(let i=gr.start;i<gr.start+gr.count;i++)ids.push(idx?idx.getX(i):i);
+        const uq=[...new Set(ids)],m2n=new Map();uq.forEach((o,n)=>m2n.set(o,n));
+        const np=new Float32Array(uq.length*3),nn=norm?new Float32Array(uq.length*3):null;
+        uq.forEach((o,n)=>{np[n*3]=pos.getX(o);np[n*3+1]=pos.getY(o);np[n*3+2]=pos.getZ(o);if(norm){nn[n*3]=norm.getX(o);nn[n*3+1]=norm.getY(o);nn[n*3+2]=norm.getZ(o)}});
+        const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.Float32BufferAttribute(np,3));if(nn)ng.setAttribute('normal',new THREE.Float32BufferAttribute(nn,3));ng.setIndex(ids.map(i=>m2n.get(i)));
+        const mt=Array.isArray(src.material)?src.material[gr.materialIndex]:src.material.clone();
+        const nm=new THREE.Mesh(ng,mt);nm.position.copy(src.position);nm.rotation.copy(src.rotation);nm.scale.copy(src.scale);par.add(nm);meshes.push(nm)});par.remove(src);
+      }
+      if(meshes.length<2)return;
+      const ob=new THREE.Box3();meshes.forEach(m=>{m.geometry.computeBoundingBox();if(m.geometry.boundingBox)ob.union(m.geometry.boundingBox)});
+      const oc=ob.getCenter(new THREE.Vector3()),os=ob.getSize(new THREE.Vector3()),md=Math.max(os.x,os.y,os.z);
+      explodeParts=meshes.map(mesh=>{mesh.geometry.computeBoundingBox();const mc=mesh.geometry.boundingBox.getCenter(new THREE.Vector3()),dir=new THREE.Vector3().subVectors(mc,oc);if(dir.length()<md*0.01)dir.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5);dir.normalize();return{mesh,originalPos:mesh.position.clone(),direction:dir,distance:md*0.4}});
+      $('#explode-panel').classList.add('visible');updateExplodeGroupSelect();mapOverlaysToMeshes();
+    }
+    function getActivePartIndices(){if(!explodeGroup)return new Set(explodeParts.map((_,i)=>i));const indices=new Set();overlayItems.forEach((oi,i)=>{if(oi.item.group===explodeGroup&&overlayMeshMap[i]>=0)indices.add(overlayMeshMap[i])});return indices}
+    function applyExplode(){if(!explodeParts.length)return;const active=getActivePartIndices();explodeParts.forEach(({mesh,originalPos,direction,distance},i)=>{if(active.has(i))mesh.position.copy(originalPos).addScaledVector(direction,distance*explodeAmount);else mesh.position.copy(originalPos)})}
+    function animateExplodeTo(t){const sl=$('#explode-slider'),st=parseInt(sl.value),t0=performance.now();(function step(now){const p=Math.min((now-t0)/600,1),e=p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2,c=Math.round(st+(t-st)*e);sl.value=c;$('#explode-pct').textContent=c+'%';explodeAmount=c/100;applyExplode();$('#explode-toggle').classList.toggle('active',c>0);if(p<1)requestAnimationFrame(step)})(performance.now())}
+    function updateExplodeGroupSelect(){const sel=$('#explode-group-sel'),cur=sel.value;sel.innerHTML='<option value="">Todos</option>';groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o)});sel.value=cur}
+    function mapOverlaysToMeshes(){overlayMeshMap=[];if(!explodeParts.length||!overlayPos.length){overlayPos.forEach(()=>overlayMeshMap.push(-1));return}const saved=explodeParts.map(p=>p.mesh.position.clone());explodeParts.forEach(p=>p.mesh.position.copy(p.originalPos));if(model)model.updateMatrixWorld(true);overlayPos.forEach(wp=>{let minD=Infinity,best=-1;explodeParts.forEach((part,pi)=>{const c=new THREE.Vector3();part.mesh.geometry.computeBoundingBox();part.mesh.geometry.boundingBox.getCenter(c);part.mesh.localToWorld(c);const d=wp.distanceTo(c);if(d<minD){minD=d;best=pi}});overlayMeshMap.push(best)});explodeParts.forEach((p,i)=>p.mesh.position.copy(saved[i]));if(model)model.updateMatrixWorld(true)}
+
+    // ─── Overlays ───
+    function rebuildOverlays(){const layer=$('#hotspot-layer');layer.innerHTML='';overlayEls=[];overlayPos=[];overlayItems=[];
+      labels.forEach((l,i)=>{const oi={item:l,type:'label',idx:i};const pos=parseVec3(l.posicion);overlayPos.push(pos);overlayItems.push(oi);const btn=document.createElement('button');btn.className='hs-3d hs-label';if(!l.visible)btn.classList.add('hidden-item');btn.innerHTML=`<span class="dot label-dot"></span><span class="tag">${l.nombre}</span>`;btn.addEventListener('click',e=>{e.stopPropagation();if(placingMode)return;showDescPopup(l,e.clientX,e.clientY)});layer.appendChild(btn);overlayEls.push(btn)});
+      mapOverlaysToMeshes();rebuildInnovationsPanel();renderItemLists();renderGroupList();updateExplodeGroupSelect();
+    }
+    function rebuildInnovationsPanel(){const panel=$('#innov-panel'),list=$('#innov-list');list.innerHTML='';if(!components.length){panel.classList.remove('visible');return}panel.classList.add('visible');components.forEach((c,i)=>{const row=document.createElement('div');row.className='innov-item';row.innerHTML=`<span class="innov-num">${i+1}</span><span class="innov-name">${c.nombre}</span>`;row.addEventListener('click',()=>{if(c.video)openVideoModal(i)});list.appendChild(row)})}
+    function updateOverlayPositions(){if(!model||!overlayPos.length)return;const w=container.clientWidth,h=container.clientHeight;const camDir=controls.target.clone().sub(camera.position).normalize();overlayPos.forEach((wp,i)=>{let pos=wp;if(explodeAmount>0&&overlayMeshMap[i]>=0){const part=explodeParts[overlayMeshMap[i]];if(part){const origW=part.mesh.parent.localToWorld(part.originalPos.clone());const currW=part.mesh.parent.localToWorld(part.mesh.position.clone());pos=wp.clone().add(currW.sub(origW))}}const p=pos.clone().project(camera);const toOv=pos.clone().sub(controls.target).normalize();const behind=p.z>1||camDir.dot(toOv)>0.15;const el=overlayEls[i];if(!el)return;el.style.left=((p.x*0.5+0.5)*w)+'px';el.style.top=((-p.y*0.5+0.5)*h)+'px';el.classList.toggle('behind',behind)})}
+    function showDescPopup(item,x,y){const dp=$('#desc-popup');dp.querySelector('.dp-title').textContent=item.nombre;dp.querySelector('.dp-text').textContent=item.descripcion||'Sin descripción';dp.style.left=Math.min(x+10,window.innerWidth-290)+'px';dp.style.top=Math.min(y+10,window.innerHeight-120)+'px';dp.classList.add('show')}
+    function hideDescPopup(){$('#desc-popup').classList.remove('show')}
+    function renderItemLists(){renderList($('#comp-list'),components,'comp');renderList($('#label-list'),labels,'label')}
+    function renderList(ctr,items,type){ctr.innerHTML='';if(!items.length){ctr.innerHTML='<div class="empty-msg" style="padding:.5rem">Ninguno creado aún</div>';return}items.forEach((item,i)=>{const d=document.createElement('div');d.className='item-row';const grpName=item.group?groups.find(g=>g.id===item.group)?.nombre:'';d.innerHTML=`<input type="checkbox" class="item-check" ${item.visible?'checked':''}><span class="item-icon ${type}">${type==='comp'?(i+1):''}</span><div class="item-info"><div class="item-name">${item.nombre}</div><div class="item-meta">${grpName||'Sin grupo'}</div></div><div class="item-actions"><button class="ia-btn" title="Editar">✎</button><button class="ia-btn del" title="Eliminar">✕</button></div>`;d.querySelector('.item-check').addEventListener('change',e=>{item.visible=e.target.checked;rebuildOverlays()});d.querySelector('.ia-btn').addEventListener('click',()=>openEditor(type,i));d.querySelector('.del').addEventListener('click',()=>{if(!confirm(`¿Eliminar "${item.nombre}"?`))return;if(type==='comp')components.splice(i,1);else labels.splice(i,1);rebuildOverlays()});ctr.appendChild(d)})}
+    function renderGroupList(){const ctr=$('#group-list');ctr.innerHTML='';if(!groups.length){ctr.innerHTML='<div class="empty-msg" style="padding:.5rem">Ningún grupo creado</div>';return}groups.forEach((grp,gi)=>{const members=[...components.filter(c=>c.group===grp.id),...labels.filter(l=>l.group===grp.id)];const allVis=members.length>0&&members.every(m=>m.visible);const card=document.createElement('div');card.className='group-card';let ih=members.map(m=>{const isC=components.includes(m);return `<div class="item-row" style="margin-bottom:.2rem"><input type="checkbox" class="item-check" data-id="${m.id}" ${m.visible?'checked':''}><span class="item-icon ${isC?'comp':'label'}" style="width:18px;height:18px;font-size:.55rem">${isC?'C':''}</span><div class="item-name" style="font-size:.7rem">${m.nombre}</div></div>`}).join('');if(!members.length)ih='<div style="font-size:.65rem;color:var(--text-dim);padding:.3rem">Sin elementos asignados</div>';card.innerHTML=`<div class="group-header"><input type="checkbox" class="group-check" ${allVis?'checked':''}><span class="group-name">${grp.nombre}</span><span class="group-count">${members.length}</span><button class="ia-btn del" title="Eliminar grupo">✕</button></div><div class="group-items">${ih}</div>`;card.querySelector('.group-check').addEventListener('change',e=>{members.forEach(m=>m.visible=e.target.checked);rebuildOverlays()});card.querySelector('.del').addEventListener('click',()=>{if(!confirm(`¿Eliminar grupo "${grp.nombre}"?`))return;[...components,...labels].filter(m=>m.group===grp.id).forEach(m=>m.group='');groups.splice(gi,1);rebuildOverlays()});card.querySelectorAll('.item-check').forEach(cb=>cb.addEventListener('change',e=>{const id=e.target.dataset.id;const m=[...components,...labels].find(x=>x.id===id);if(m){m.visible=e.target.checked;rebuildOverlays()}}));ctr.appendChild(card)})}
+
+    // ─── Editor ───
+    function startPlacing(type){if(!model){alert('Carga un modelo 3D primero');return}placingMode=type;editingIdx=-1;editingType=type;const msg=$('#placing-msg');msg.textContent=type==='comp'?'Haz clic en el modelo para ubicar el componente':'Haz clic en el modelo para ubicar la etiqueta';msg.className='placing-msg visible '+(type==='comp'?'comp-mode':'label-mode');canvas.style.cursor='crosshair'}
+    canvas.addEventListener('click',e=>{if(!placingMode||!model)return;const r=canvas.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObject(model,true);if(hits.length>0){const p=hits[0].point;const ps=`${p.x.toFixed(4)} ${p.y.toFixed(4)} ${p.z.toFixed(4)}`;placingMode=null;$('#placing-msg').classList.remove('visible');canvas.style.cursor='';openEditor(editingType,-1,ps)}});
+    function openEditor(type,idx,posStr){editingType=type;editingIdx=idx;const isComp=type==='comp';const item=idx>=0?(isComp?components[idx]:labels[idx]):null;$('#edit-title').textContent=item?`Editar ${isComp?'Innovación':'Etiqueta'}`:`${isComp?'Nueva Innovación':'Nueva Etiqueta'}`;$('#ed-name').value=item?.nombre||'';$('#ed-desc').value=item?.descripcion||'';$('#ed-video').value=item?.video||'';$('#ed-pos').value=posStr||item?.posicion||'0 0 0';$('#ed-pos').parentElement.style.display=isComp?'none':'';const sel=$('#ed-group');sel.innerHTML='<option value="">— Sin grupo —</option>';groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o)});if(item?.group)sel.value=item.group;$('#edit-modal').classList.add('open');setTimeout(()=>$('#ed-name').focus(),100)}
+    function saveEditor(){const nombre=$('#ed-name').value.trim();if(!nombre){alert('Escribe un nombre');return}const posicion=$('#ed-pos').value.trim();if(!posicion){alert('Necesitas una posición 3D');return}const obj={id:nombre.toLowerCase().replace(/\s+/g,'-')+'-'+Date.now(),nombre,descripcion:$('#ed-desc').value.trim(),video:$('#ed-video').value.trim(),posicion,group:$('#ed-group').value,visible:true};const isComp=editingType==='comp';if(editingIdx>=0){const old=isComp?components[editingIdx]:labels[editingIdx];obj.id=old.id;obj.visible=old.visible;if(isComp)components[editingIdx]=obj;else labels[editingIdx]=obj}else{if(isComp)components.push(obj);else labels.push(obj)}$('#edit-modal').classList.remove('open');rebuildOverlays()}
+    let editingGroupIdx=-1;
+    function openGroupEditor(idx){editingGroupIdx=idx;const g=idx>=0?groups[idx]:null;$('#grp-title').textContent=g?'Editar Grupo':'Nuevo Grupo';$('#grp-name').value=g?.nombre||'';$('#group-modal').classList.add('open');setTimeout(()=>$('#grp-name').focus(),100)}
+    function saveGroup(){const nombre=$('#grp-name').value.trim();if(!nombre){alert('Escribe un nombre');return}if(editingGroupIdx>=0)groups[editingGroupIdx].nombre=nombre;else groups.push({id:'grp-'+Date.now(),nombre});$('#group-modal').classList.remove('open');rebuildOverlays()}
+    function openVideoModal(i){const c=components[i];if(!c||!c.video)return;$('#modal-num').textContent=i+1;$('#modal-title').textContent=c.nombre;$('#modal-desc').textContent=c.descripcion;const vid=$('#modal-video'),ld=$('#video-loading'),er=$('#video-error');ld.classList.remove('hidden');er.classList.remove('show');let url=c.video;if(!url.startsWith('http')){const b=$('#cloudinary-base').value.trim();if(b)url=b+url}vid.src=url;vid.oncanplay=()=>ld.classList.add('hidden');vid.onerror=()=>{ld.classList.add('hidden');er.classList.add('show')};vid.load();vid.play().catch(()=>{});$('#modal-overlay').classList.add('open')}
+    function closeVideoModal(){const v=$('#modal-video');$('#modal-overlay').classList.remove('open');v.pause();v.removeAttribute('src');v.load()}
+
+    // ─── Projects (localStorage) ───
+    const STORAGE_KEY='aurora3d_projects';
+    function getProjects(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]}catch{return[]}}
+    function saveProjects(p){localStorage.setItem(STORAGE_KEY,JSON.stringify(p))}
+    function saveCurrentProject(){const name=$('#project-name').value.trim()||'Sin nombre';const projects=getProjects();const existing=projects.findIndex(p=>p.name===name);const proj={name,cloudinaryBase:$('#cloudinary-base').value,modelUrl:currentModelFile,components,labels,groups,savedAt:new Date().toISOString()};if(existing>=0)projects[existing]=proj;else projects.push(proj);saveProjects(projects);renderProjectsGrid();alert(`Proyecto "${name}" guardado`)}
+    function exportProject(){const proj={version:3,name:$('#project-name').value,cloudinaryBase:$('#cloudinary-base').value,modelUrl:currentModelFile,components,labels,groups};const blob=new Blob([JSON.stringify(proj,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(proj.name||'proyecto').replace(/\s+/g,'-').toLowerCase()+'.json';a.click()}
+    function importProject(file){const reader=new FileReader();reader.onload=e=>{try{const proj=JSON.parse(e.target.result);if(!proj.name&&!proj.components&&!proj.labels){alert('Archivo no válido');return}loadProjectData(proj);const projects=getProjects();const existing=projects.findIndex(p=>p.name===proj.name);if(existing>=0)projects[existing]={...proj,savedAt:new Date().toISOString()};else projects.push({...proj,savedAt:new Date().toISOString()});saveProjects(projects);renderProjectsGrid();switchTab('model');alert(`Proyecto "${proj.name}" importado correctamente`)}catch{alert('Error al leer el archivo JSON')}};reader.readAsText(file)}
+    function loadProjectData(proj){$('#project-name').value=proj.name||'';$('#topbar-name').textContent=proj.name||'AURORA 3D';$('#cloudinary-base').value=proj.cloudinaryBase||'';components=proj.components||[];labels=proj.labels||[];groups=proj.groups||[];components.forEach(c=>{if(c.visible===undefined)c.visible=true});labels.forEach(l=>{if(l.visible===undefined)l.visible=true});rebuildOverlays()}
+    function renderProjectsGrid(){const grid=$('#projects-grid'),empty=$('#projects-empty');const projects=getProjects();grid.innerHTML='';if(!projects.length){empty.style.display='';return}empty.style.display='none';projects.forEach((p,i)=>{const card=document.createElement('div');card.className='project-card';const d=p.savedAt?new Date(p.savedAt).toLocaleDateString('es',{day:'numeric',month:'short'}):'';const nc=(p.components?.length||0),nl=(p.labels?.length||0);card.innerHTML=`<div class="project-thumb">🤖</div><div class="project-card-info"><div class="project-card-name">${p.name}</div><div class="project-card-date">${d} · ${nc}C ${nl}E</div></div><div class="project-card-actions"><button class="btn btn-sm" style="flex:1;padding:.25rem" data-action="load">Abrir</button><button class="btn btn-danger btn-sm" style="padding:.25rem .5rem" data-action="del">✕</button></div>`;card.querySelector('[data-action="load"]').addEventListener('click',()=>{loadProjectData(p);switchTab('model')});card.querySelector('[data-action="del"]').addEventListener('click',e=>{e.stopPropagation();if(!confirm(`¿Eliminar "${p.name}"?`))return;const ps=getProjects();ps.splice(i,1);saveProjects(ps);renderProjectsGrid()});grid.appendChild(card)})}
+
+    // ─── GitHub Publish System ───
+    const GH_KEY='aurora3d_github';
+    function getGHConfig(){try{return JSON.parse(localStorage.getItem(GH_KEY))||{}}catch{return{}}}
+    function saveGHConfig(c){localStorage.setItem(GH_KEY,JSON.stringify(c))}
+
+    async function ghFetch(method,url,body,token){
+      const opts={method,headers:{'Accept':'application/vnd.github.v3+json'}};
+      if(token)opts.headers['Authorization']=`Bearer ${token}`;
+      if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
+      const r=await fetch(url,opts);
+      return r;
+    }
+
+    async function ghPutFile(repo,filePath,content,token,message){
+      const getR=await ghFetch('GET',`https://api.github.com/repos/${repo}/contents/${filePath}`,null,token);
+      let sha=null;
+      if(getR.ok){try{const j=await getR.json();sha=j.sha}catch{}}
+      const body={message,content};
+      if(sha)body.sha=sha;
+      const putR=await ghFetch('PUT',`https://api.github.com/repos/${repo}/contents/${filePath}`,body,token);
+      if(!putR.ok){const t=await putR.text();throw new Error(`GitHub ${putR.status}: ${t}`)}
+      return putR.json();
+    }
+
+    function arrayBufferToBase64(buf){const bytes=new Uint8Array(buf);let bin='';for(let i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);return btoa(bin)}
+
+    function setPubStep(id){$$('.pub-step').forEach(s=>s.classList.remove('active'));$('#pub-step-'+id).classList.add('active')}
+    function setStepStatus(id,status){const li=$('#'+id);const icon=li.querySelector('.icon');li.className=status;icon.textContent=status==='done'?'✅':status==='doing'?'⏳':status==='fail'?'❌':'⏳'}
+
+    function openPublishModal(){
+      if(!model){alert('Carga un modelo 3D primero');return}
+      const cfg=getGHConfig();
+      if(cfg.repo&&cfg.token){
+        $('#pub-repo').value=cfg.repo;$('#pub-token').value=cfg.token;
+        setPubStep('confirm');
+      }else{
+        setPubStep('config');
+      }
+      const projName=$('#project-name').value||'Mi Proyecto';
+      $('#pub-name').value=projName;$('#pub-desc').value='';
+      ['ps-glb','ps-upload-glb','ps-upload-json','ps-manifest'].forEach(id=>setStepStatus(id,''));
+      $('#publish-modal').classList.add('open');
+    }
+
+    async function doPublish(){
+      const repo=$('#pub-repo').value.trim();const token=$('#pub-token').value.trim();
+      if(!repo||!token){alert('Completa repo y token');return}
+      saveGHConfig({repo,token});
+      const projName=$('#project-name').value||'Mi Proyecto';
+      const slug=projName.replace(/\s+/g,'-').toLowerCase();
+      const icon=$('#pub-icon').value;const desc=$('#pub-desc').value.trim();
+      const modelPath=currentModelFile||`assets/${slug}.glb`;
+      setPubStep('progress');
+
+      try{
+        setStepStatus('ps-glb','done');
+        setStepStatus('ps-upload-glb','done');
+
+        setStepStatus('ps-upload-json','doing');
+        const proj={version:3,name:projName,cloudinaryBase:$('#cloudinary-base').value,modelUrl:modelPath,components,labels,groups};
+        const jsonBase64=btoa(unescape(encodeURIComponent(JSON.stringify(proj,null,2))));
+        await ghPutFile(repo,`${slug}.json`,jsonBase64,token,`AURORA 3D: proyecto ${projName}`);
+        setStepStatus('ps-upload-json','done');
+
+        setStepStatus('ps-manifest','doing');
+        let manifest=[];
+        const getManifest=await ghFetch('GET',`https://api.github.com/repos/${repo}/contents/aurora-projects.json`,null,token);
+        if(getManifest.ok){try{const mj=await getManifest.json();manifest=JSON.parse(atob(mj.content.replace(/\n/g,'')))}catch{manifest=[]}}
+        const idx=manifest.findIndex(m=>m.file===`${slug}.json`);
+        const entry={name:projName,file:`${slug}.json`,icon,description:desc};
+        if(idx>=0)manifest[idx]=entry;else manifest.push(entry);
+        const manifestBase64=btoa(unescape(encodeURIComponent(JSON.stringify(manifest,null,2))));
+        await ghPutFile(repo,'aurora-projects.json',manifestBase64,token,`AURORA 3D: actualizar galería`);
+        setStepStatus('ps-manifest','done');
+
+        const owner=repo.split('/')[0];const repoName=repo.split('/')[1];
+        const viewerUrl=`https://${owner}.github.io/${repoName}/`;
+        const qrApi=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=3b82f6&bgcolor=ffffff&data=${encodeURIComponent(viewerUrl)}`;
+        $('#pub-qr-img').src=qrApi;$('#pub-url-text').textContent=viewerUrl;
+        setPubStep('success');
+      }catch(e){
+        console.error('Publish API error:',e);
+        showManualPublish(repo,slug,projName,modelPath);
+      }
+    }
+
+    function showManualPublish(repo,slug,projName,modelPath){
+      const proj={version:3,name:projName,cloudinaryBase:$('#cloudinary-base').value,modelUrl:modelPath,components,labels,groups};
+      window._pendingPubJSON=JSON.stringify(proj,null,2);window._pendingPubSlug=slug;
+      const owner=repo.split('/')[0];const repoName=repo.split('/')[1];
+      const viewerUrl=`https://${owner}.github.io/${repoName}/`;
+      const qrApi=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=3b82f6&bgcolor=ffffff&data=${encodeURIComponent(viewerUrl)}`;
+      $('#pub-qr-manual').src=qrApi;$('#pub-url-manual').textContent=viewerUrl;
+      setPubStep('manual');
+    }
+
+    function downloadPubJSON(){
+      if(!window._pendingPubJSON)return;
+      const blob=new Blob([window._pendingPubJSON],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(window._pendingPubSlug||'proyecto')+'.json';a.click();
+    }
+
+    // ─── Tabs & Present ───
+    function switchTab(id){$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));$$('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+id));if(id==='projects')renderProjectsGrid()}
+    $$('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+    function togglePresent(){const sb=$('#sidebar'),bd=$('#mode-badge');const isPres=!sb.classList.contains('collapsed');sb.classList.toggle('collapsed',isPres);bd.className='status-badge '+(isPres?'badge-present':'badge-edit');bd.textContent=isPres?'PRESENTACIÓN':'EDICIÓN';setTimeout(onResize,350)}
+
+    // ─── Wiring ───
+    const dz=$('#dropzone'),fi=$('#file-input');
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length)loadFromFiles(Array.from(e.dataTransfer.files))});
+    fi.addEventListener('change',()=>{if(fi.files.length)loadFromFiles(Array.from(fi.files));fi.value=''});
+    $('#close-sidebar').addEventListener('click',()=>{$('#sidebar').classList.add('collapsed');setTimeout(onResize,350)});
+    $('#open-sidebar').addEventListener('click',()=>{$('#sidebar').classList.remove('collapsed');$('#mode-badge').className='status-badge badge-edit';$('#mode-badge').textContent='EDICIÓN';setTimeout(onResize,350)});
+    $('#project-name').addEventListener('input',e=>$('#topbar-name').textContent=e.target.value||'AURORA 3D');
+    $('#add-comp-btn').addEventListener('click',()=>openEditor('comp',-1,'0 0 0'));
+    $('#add-label-btn').addEventListener('click',()=>startPlacing('label'));
+    $('#add-group-btn').addEventListener('click',()=>openGroupEditor(-1));
+    $('#show-all-btn').addEventListener('click',()=>{[...components,...labels].forEach(m=>m.visible=true);rebuildOverlays()});
+    $('#hide-all-btn').addEventListener('click',()=>{[...components,...labels].forEach(m=>m.visible=false);rebuildOverlays()});
+    $('#ed-save').addEventListener('click',saveEditor);
+    $('#ed-cancel').addEventListener('click',()=>{$('#edit-modal').classList.remove('open');placingMode=null;$('#placing-msg').classList.remove('visible');canvas.style.cursor=''});
+    $('#grp-save').addEventListener('click',saveGroup);$('#grp-cancel').addEventListener('click',()=>$('#group-modal').classList.remove('open'));
+    $('#modal-close').addEventListener('click',closeVideoModal);$('#modal-overlay').addEventListener('click',e=>{if(e.target===$('#modal-overlay'))closeVideoModal()});
+    $('#save-btn').addEventListener('click',saveCurrentProject);$('#import-btn').addEventListener('click',()=>$('#import-file').click());$('#import-file').addEventListener('change',e=>{if(e.target.files[0])importProject(e.target.files[0]);e.target.value=''});$('#export-btn').addEventListener('click',exportProject);
+    $('#publish-btn').addEventListener('click',openPublishModal);
+    $('#pub-config-cancel').addEventListener('click',()=>$('#publish-modal').classList.remove('open'));
+    $('#pub-config-next').addEventListener('click',()=>{const r=$('#pub-repo').value.trim(),t=$('#pub-token').value.trim();if(!r||!t){alert('Completa ambos campos');return}saveGHConfig({repo:r,token:t});$('#pub-name').value=$('#project-name').value;setPubStep('confirm')});
+    $('#pub-confirm-back').addEventListener('click',()=>setPubStep('config'));
+    $('#pub-confirm-go').addEventListener('click',doPublish);
+    $('#pub-done').addEventListener('click',()=>$('#publish-modal').classList.remove('open'));
+    $('#pub-manual-done').addEventListener('click',()=>$('#publish-modal').classList.remove('open'));
+    $('#pub-download-json').addEventListener('click',downloadPubJSON);
+    $('#present-btn').addEventListener('click',togglePresent);
+    $('#innov-toggle-btn').addEventListener('click',()=>$('#innov-panel').classList.toggle('collapsed'));
+    $('#explode-slider').addEventListener('input',e=>{explodeAmount=parseInt(e.target.value)/100;$('#explode-pct').textContent=e.target.value+'%';applyExplode();$('#explode-toggle').classList.toggle('active',explodeAmount>0)});
+    $('#explode-toggle').addEventListener('click',()=>{explodeActive=!explodeActive;animateExplodeTo(explodeActive?60:0)});
+    $('#explode-group-sel').addEventListener('change',e=>{explodeGroup=e.target.value;applyExplode()});
+    $('#enter-btn').addEventListener('click',()=>$('#splash').classList.add('hidden'));
+    document.addEventListener('click',e=>{if(!e.target.closest('#desc-popup')&&!e.target.closest('.hs-3d'))hideDescPopup()});
+    $('#desc-popup').querySelector('.dp-close').addEventListener('click',hideDescPopup);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVideoModal();hideDescPopup();$('#edit-modal').classList.remove('open');$('#group-modal').classList.remove('open');$('#publish-modal').classList.remove('open');if(placingMode){placingMode=null;$('#placing-msg').classList.remove('visible');canvas.style.cursor=''}}});
+    renderProjectsGrid();
+  </script>
+</body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Robot FLL - Presentación Interactiva</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0b0f1a;
+      --bg-card: #151b2e;
+      --bg-modal: #1a2035;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --cyan: #06b6d4;
+      --hotspot: #f59e0b;
+      --hotspot-glow: rgba(245, 158, 11, 0.45);
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    #app {
+      display: flex; flex-direction: column;
+      height: 100dvh; width: 100%;
+      position: relative;
+    }
+
+    /* ─── INTRO OVERLAY ─── */
+    #intro {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #intro.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    #intro h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    #intro .subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.4rem);
+      color: var(--text-dim); font-weight: 500;
+      margin-bottom: 2.5rem;
+    }
+    #intro .start-btn {
+      padding: 1rem 3rem;
+      font-size: 1.1rem; font-weight: 700;
+      font-family: inherit;
+      border: none; border-radius: 50px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      color: white; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 25px var(--accent-glow);
+    }
+    #intro .start-btn:active { transform: scale(0.96); }
+
+    /* ─── HEADER ─── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 1.5rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0; z-index: 10;
+    }
+    .team-info { display: flex; align-items: center; gap: 0.75rem; }
+    .team-logo {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 800;
+    }
+    .team-name { font-weight: 700; font-size: 1rem; }
+    .team-season { font-size: 0.75rem; color: var(--text-dim); }
+    .header-badge {
+      padding: 0.35rem 0.9rem;
+      border-radius: 50px;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: var(--accent);
+      font-size: 0.75rem; font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    /* ─── MAIN CONTAINER ─── */
+    main {
+      flex: 1; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(59,130,246,0.06) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    #robot-wrapper {
+      position: relative;
+      max-width: 90%; max-height: 90%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    #robot-image {
+      max-width: 100%; max-height: 65dvh;
+      object-fit: contain;
+      border-radius: var(--radius);
+      filter: drop-shadow(0 0 40px rgba(59,130,246,0.12));
+      user-select: none; -webkit-user-drag: none;
+    }
+
+    .placeholder-robot {
+      width: min(70vw, 600px); height: min(50vh, 400px);
+      border-radius: var(--radius);
+      border: 2px dashed rgba(255,255,255,0.15);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.02);
+    }
+    .placeholder-robot svg { margin-bottom: 1rem; opacity: 0.4; }
+    .placeholder-robot span { font-size: 0.9rem; }
+
+    /* ─── HOTSPOTS ─── */
+    .hotspot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 5; cursor: pointer;
+      border: none; background: none; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .hotspot-ring {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--hotspot);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      box-shadow: 0 0 0 0 var(--hotspot-glow);
+      animation: pulse 2.5s ease-in-out infinite;
+      transition: transform 0.2s ease;
+    }
+    .hotspot:active .hotspot-ring { transform: scale(0.88); }
+
+    .hotspot-number {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem; font-weight: 800;
+      color: #1a1a2e;
+      position: relative; z-index: 2;
+    }
+
+    .hotspot-label {
+      position: absolute;
+      top: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600;
+      color: var(--text);
+      opacity: 0; transition: opacity 0.2s;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .hotspot:hover .hotspot-label,
+    .hotspot:focus .hotspot-label { opacity: 1; }
+
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 var(--hotspot-glow); }
+      50%  { box-shadow: 0 0 0 14px rgba(245,158,11,0); }
+      100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    }
+
+    /* ─── BOTTOM NAV (component pills) ─── */
+    #bottom-nav {
+      display: flex; align-items: center;
+      gap: 0.5rem; padding: 0.6rem 1rem;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto; flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #bottom-nav::-webkit-scrollbar { display: none; }
+
+    .nav-pill {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim);
+      font-size: 0.78rem; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer; white-space: nowrap;
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-pill:active { transform: scale(0.95); }
+    .nav-pill .pill-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--hotspot);
+      color: #1a1a2e;
+      font-size: 0.7rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-pill.active {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: var(--text);
+    }
+
+    .nav-hint {
+      flex-shrink: 0;
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      padding: 0 0.5rem;
+      opacity: 0.6;
+    }
+
+    /* ─── VIDEO MODAL ─── */
+    #modal-overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    #modal-overlay.open { opacity: 1; visibility: visible; }
+
+    .modal-card {
+      width: min(92vw, 720px);
+      max-height: 90dvh;
+      background: var(--bg-modal);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      transform: translateY(30px) scale(0.95);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+    #modal-overlay.open .modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1.3rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .modal-header-left { display: flex; align-items: center; gap: 0.7rem; }
+    .modal-number {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--hotspot);
+      color: #1a1a2e;
+      font-weight: 800; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 700; }
+
+    .modal-close {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: var(--text-dim);
+      font-size: 1.3rem; line-height: 1;
+      cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.25); color: var(--danger); }
+
+    .modal-video-wrapper {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16/9;
+      width: 100%;
+    }
+
+    .modal-video-wrapper video {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .video-loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+      transition: opacity 0.3s;
+    }
+    .video-loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .video-loading span { margin-top: 0.7rem; font-size: 0.8rem; color: var(--text-dim); }
+
+    .video-error {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.8);
+      color: var(--danger);
+      font-size: 0.85rem; text-align: center;
+      padding: 1rem;
+    }
+    .video-error.show { display: flex; }
+    .video-error svg { margin-bottom: 0.5rem; }
+
+    .modal-body { padding: 1rem 1.3rem 1.3rem; overflow-y: auto; }
+    .modal-description {
+      color: var(--text-dim);
+      font-size: 0.9rem; line-height: 1.6;
+    }
+
+    /* ─── STAGGER ANIMATION ─── */
+    .hotspot { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+    .hotspot.appear {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-height: 500px) {
+      header { padding: 0.4rem 1rem; }
+      .team-logo { width: 30px; height: 30px; font-size: 1rem; }
+      #bottom-nav { padding: 0.4rem 0.8rem; }
+    }
+
+    @media (orientation: portrait) {
+      #robot-image { max-height: 50dvh; }
+      .modal-card { width: min(96vw, 720px); }
+    }
+
+    /* ─── ACCESSIBILITY ─── */
+    .hotspot:focus-visible .hotspot-ring {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- ═══ PANTALLA DE INICIO ═══ -->
+    <div id="intro">
+      <h1 id="intro-team"></h1>
+      <p class="subtitle" id="intro-robot"></p>
+      <button class="start-btn" onclick="startApp()">Explorar el Robot</button>
+    </div>
+
+    <!-- ═══ HEADER ═══ -->
+    <header>
+      <div class="team-info">
+        <div class="team-logo" id="header-logo"></div>
+        <div>
+          <div class="team-name" id="header-team"></div>
+          <div class="team-season" id="header-season"></div>
+        </div>
+      </div>
+      <span class="header-badge">PRESENTACIÓN INTERACTIVA</span>
+    </header>
+
+    <!-- ═══ ZONA DEL ROBOT ═══ -->
+    <main>
+      <div id="robot-wrapper"></div>
+    </main>
+
+    <!-- ═══ BARRA DE NAVEGACIÓN INFERIOR ═══ -->
+    <nav id="bottom-nav">
+      <span class="nav-hint">Componentes →</span>
+    </nav>
+
+    <!-- ═══ MODAL DE VIDEO ═══ -->
+    <div id="modal-overlay" onclick="handleOverlayClick(event)">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <span class="modal-number" id="modal-num"></span>
+            <span class="modal-title" id="modal-title"></span>
+          </div>
+          <button class="modal-close" onclick="closeModal()" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-video-wrapper">
+          <video id="modal-video" playsinline controls preload="none"></video>
+          <div class="video-loading" id="video-loading">
+            <div class="spinner"></div>
+            <span>Cargando video...</span>
+          </div>
+          <div class="video-error" id="video-error">
+            <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span>No se pudo cargar el video.<br>Verifica tu conexión a internet.</span>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description" id="modal-desc"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ╔═══════════════════════════════════════════════════════════════════╗
+    // ║  CONFIGURACIÓN DEL EQUIPO - ¡EDITA ESTA SECCIÓN!               ║
+    // ║  Cambia los datos de tu equipo, imagen del robot y componentes. ║
+    // ╚═══════════════════════════════════════════════════════════════════╝
+
+    const CONFIG = {
+      equipo: {
+        nombre: 'EQUIPO FLL',       // Nombre de tu equipo
+        iniciales: 'FL',            // 1-2 letras para el logo
+        temporada: 'SUBMERGED 2025-2026',
+        nombreRobot: 'ROBOT EXPLORADOR',
+      },
+
+      // Ruta a la foto del robot. Puede ser:
+      //   - Ruta local:  'assets/mi-robot.jpg'
+      //   - URL externa: 'https://ejemplo.com/foto.jpg'
+      //   - Dejar vacío ('') para usar un placeholder
+      imagenRobot: '',
+
+      // URL base de tu cuenta Cloudinary (reemplaza TU_CLOUD_NAME)
+      cloudinaryBase: 'https://res.cloudinary.com/TU_CLOUD_NAME/video/upload/',
+
+      // ┌───────────────────────────────────────────────┐
+      // │  COMPONENTES DEL ROBOT                        │
+      // │  x, y = posición en % (0-100) sobre la imagen │
+      // │  video = nombre del archivo en Cloudinary      │
+      // │         O URL completa del video               │
+      // └───────────────────────────────────────────────┘
+      componentes: [
+        {
+          id: 'hub',
+          nombre: 'Hub SPIKE Prime',
+          descripcion: 'El cerebro del robot. Procesa el código, controla motores y lee los datos de todos los sensores conectados. Programado en Python/bloques.',
+          x: 50,
+          y: 30,
+          video: 'hub-spike-prime.mp4',
+        },
+        {
+          id: 'motor-izq',
+          nombre: 'Motor Izquierdo',
+          descripcion: 'Motor grande de tracción izquierda. Proporciona la fuerza para mover el robot y girar mediante diferencial de velocidades.',
+          x: 30,
+          y: 55,
+          video: 'motor-izquierdo.mp4',
+        },
+        {
+          id: 'motor-der',
+          nombre: 'Motor Derecho',
+          descripcion: 'Motor grande de tracción derecha. Trabaja en conjunto con el motor izquierdo para movimiento y giros precisos.',
+          x: 70,
+          y: 55,
+          video: 'motor-derecho.mp4',
+        },
+        {
+          id: 'sensor-color',
+          nombre: 'Sensor de Color',
+          descripcion: 'Detecta colores y la intensidad de luz reflejada. Se usa para seguir líneas y detectar marcadores en el tablero de juego.',
+          x: 42,
+          y: 75,
+          video: 'sensor-color.mp4',
+        },
+        {
+          id: 'mecanismo',
+          nombre: 'Mecanismo de Misiones',
+          descripcion: 'Sistema de engranajes y palancas accionado por un motor mediano. Intercambiable para resolver diferentes misiones del tablero.',
+          x: 78,
+          y: 35,
+          video: 'mecanismo-misiones.mp4',
+        },
+        {
+          id: 'estructura',
+          nombre: 'Chasis y Estructura',
+          descripcion: 'Diseño estructural optimizado para resistencia y bajo peso. Incluye sistema de anclaje rápido para herramientas intercambiables.',
+          x: 22,
+          y: 40,
+          video: 'chasis-estructura.mp4',
+        },
+      ],
+    };
+
+    // ╔═══════════════════════════════════════════════════════════════╗
+    // ║  CÓDIGO DE LA APLICACIÓN                                    ║
+    // ║  (No necesitas modificar nada debajo de esta línea)         ║
+    // ╚═══════════════════════════════════════════════════════════════╝
+
+    const $ = (sel) => document.querySelector(sel);
+    const video = $('#modal-video');
+    const overlay = $('#modal-overlay');
+    const loadingEl = $('#video-loading');
+    const errorEl = $('#video-error');
+
+    function init() {
+      const { equipo } = CONFIG;
+      $('#intro-team').textContent = equipo.nombre;
+      $('#intro-robot').textContent = equipo.nombreRobot;
+      $('#header-logo').textContent = equipo.iniciales;
+      $('#header-team').textContent = equipo.nombre;
+      $('#header-season').textContent = equipo.temporada;
+
+      buildRobotImage();
+      buildHotspots();
+      buildNavPills();
+    }
+
+    function buildRobotImage() {
+      const wrapper = $('#robot-wrapper');
+      if (CONFIG.imagenRobot) {
+        const img = document.createElement('img');
+        img.id = 'robot-image';
+        img.src = CONFIG.imagenRobot;
+        img.alt = CONFIG.equipo.nombreRobot;
+        img.draggable = false;
+        wrapper.appendChild(img);
+      } else {
+        wrapper.innerHTML = `
+          <div class="placeholder-robot">
+            <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 20h8m-4-4v4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>
+            </svg>
+            <span>Coloca la foto de tu robot en <strong>assets/</strong></span>
+            <span style="font-size:0.75rem;margin-top:0.3rem">y actualiza <code>imagenRobot</code> en CONFIG</span>
+          </div>`;
+      }
+    }
+
+    function buildHotspots() {
+      const wrapper = $('#robot-wrapper');
+      CONFIG.componentes.forEach((comp, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'hotspot';
+        btn.setAttribute('aria-label', comp.nombre);
+        btn.style.left = comp.x + '%';
+        btn.style.top = comp.y + '%';
+        btn.innerHTML = `
+          <div class="hotspot-ring" style="animation-delay: ${i * 0.3}s">
+            <span class="hotspot-number">${i + 1}</span>
+          </div>
+          <span class="hotspot-label">${comp.nombre}</span>`;
+        btn.addEventListener('click', () => openModal(i));
+        wrapper.appendChild(btn);
+      });
+    }
+
+    function buildNavPills() {
+      const nav = $('#bottom-nav');
+      CONFIG.componentes.forEach((comp, i) => {
+        const pill = document.createElement('button');
+        pill.className = 'nav-pill';
+        pill.dataset.index = i;
+        pill.innerHTML = `<span class="pill-num">${i + 1}</span> ${comp.nombre}`;
+        pill.addEventListener('click', () => openModal(i));
+        nav.appendChild(pill);
+      });
+    }
+
+    function resolveVideoUrl(comp) {
+      if (comp.video.startsWith('http://') || comp.video.startsWith('https://')) {
+        return comp.video;
+      }
+      return CONFIG.cloudinaryBase + comp.video;
+    }
+
+    function openModal(index) {
+      const comp = CONFIG.componentes[index];
+      $('#modal-num').textContent = index + 1;
+      $('#modal-title').textContent = comp.nombre;
+      $('#modal-desc').textContent = comp.descripcion;
+
+      loadingEl.classList.remove('hidden');
+      errorEl.classList.remove('show');
+
+      const url = resolveVideoUrl(comp);
+      video.src = url;
+
+      video.oncanplay = () => loadingEl.classList.add('hidden');
+      video.onerror = () => {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.add('show');
+      };
+
+      video.load();
+      video.play().catch(() => {});
+
+      overlay.classList.add('open');
+
+      document.querySelectorAll('.nav-pill').forEach((p, i) =>
+        p.classList.toggle('active', i === index));
+    }
+
+    function closeModal() {
+      overlay.classList.remove('open');
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === overlay) closeModal();
+    }
+
+    function startApp() {
+      $('#intro').classList.add('hidden');
+      const hotspots = document.querySelectorAll('.hotspot');
+      hotspots.forEach((h, i) => {
+        setTimeout(() => h.classList.add('appear'), 150 + i * 120);
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    init();
+  </script>
+</body>
+</html>

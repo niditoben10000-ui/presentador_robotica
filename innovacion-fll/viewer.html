@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AURORA NOVA — Visor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#080d1a;--bg-card:#111827;--bg-modal:#151d30;--bg-input:#1e293b;
+      --accent:#8b5cf6;--cyan:#06b6d4;--amber:#f59e0b;
+      --nova1:#8b5cf6;--nova2:#06b6d4;--nova3:#f59e0b;
+      --text:#f1f5f9;--text-dim:#94a3b8;--text-muted:#475569;
+      --success:#10b981;--danger:#ef4444;
+      --radius:12px;
+      --video-color:#ef4444;--audio-color:#8b5cf6;--image-color:#06b6d4;
+      --link-color:#3b82f6;--doc-color:#f59e0b
+    }
+    html,body{height:100%;width:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+    button{font-family:inherit}
+
+    /* ═══ LOAD SCREEN ═══ */
+    #load-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s,visibility .6s}
+    #load-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .load-logo{font-size:2.2rem;font-weight:900;letter-spacing:.06em;background:linear-gradient(135deg,var(--nova1),var(--nova2),var(--nova3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem}
+    .load-sub{font-size:.78rem;color:var(--text-dim);margin-bottom:1.8rem}
+    .load-drop{width:min(85vw,360px);padding:2rem 1rem;border:2.5px dashed rgba(139,92,246,.3);border-radius:20px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(139,92,246,.03)}
+    .load-drop:hover,.load-drop.dragover{border-color:var(--accent);background:rgba(139,92,246,.08)}
+    .load-drop .ld-icon{font-size:2.5rem;margin-bottom:.5rem;opacity:.5}
+    .load-drop .ld-text{font-size:.85rem;color:var(--text-dim);margin-bottom:.2rem}
+    .load-drop .ld-hint{font-size:.65rem;color:var(--text-muted)}
+    .load-badge{margin-top:1.5rem;font-size:.6rem;color:var(--text-muted)}
+    .load-or{margin:1.2rem 0 .8rem;font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+    .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;width:min(90vw,500px);padding:0 .5rem}
+    .gallery-card{background:var(--bg-card);border:1.5px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .2s}
+    .gallery-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 25px rgba(139,92,246,.15)}
+    .gallery-card:active{transform:scale(.97)}
+    .gallery-icon{height:70px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(6,182,212,.08))}
+    .gallery-info{padding:.6rem .7rem}
+    .gallery-name{font-size:.75rem;font-weight:700;margin-bottom:.1rem}
+    .gallery-team{font-size:.6rem;color:var(--text-muted)}
+    .gallery-loading{font-size:.75rem;color:var(--text-muted);padding:1rem}
+
+    /* ═══ VIEWER LAYOUT ═══ */
+    #viewer{display:none;flex-direction:column;height:100dvh;width:100%}
+    #viewer.visible{display:flex}
+
+    /* ─── Topbar ─── */
+    .v-topbar{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;background:var(--bg-card);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;z-index:10}
+    .v-topbar-left{display:flex;align-items:center;gap:.4rem;min-width:0}
+    .v-brand{font-size:.65rem;font-weight:900;letter-spacing:.04em;background:linear-gradient(135deg,var(--nova1),var(--nova2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex-shrink:0}
+    .v-proj-name{font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .v-indicator{padding:.2rem .55rem;border-radius:50px;font-size:.65rem;font-weight:700;background:rgba(139,92,246,.15);color:var(--accent);border:1px solid rgba(139,92,246,.3);flex-shrink:0}
+
+    /* ─── Content Area ─── */
+    .v-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:thin}
+    .v-content::-webkit-scrollbar{width:3px}
+    .v-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+    .v-slide-header{padding:.8rem .8rem .5rem;flex-shrink:0}
+    .v-slide-title{display:inline-block;font-size:1.05rem;font-weight:800;line-height:1.3;text-align:left;background:rgba(241,245,249,.92);color:#1e293b;padding:.45rem .9rem;border-radius:10px;margin-bottom:.6rem}
+    .v-slide-desc{font-size:.82rem;color:var(--text-dim);line-height:1.65;text-align:justify;hyphens:auto;background:var(--bg-card);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:.75rem .9rem}
+    .v-slide-desc b,.v-slide-desc strong{font-weight:800;color:#f1f5f9}
+    .v-slide-desc mark{background:rgba(251,191,36,.3);color:#fbbf24;border-radius:3px;padding:0 2px}
+
+    /* ─── Resource List (vertical, full width) ─── */
+    .v-res-list{display:flex;flex-direction:column;gap:.45rem;padding:.3rem .8rem .8rem}
+    .v-res-btn{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;border-radius:14px;border:none;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .15s;min-height:52px;width:100%}
+    .v-res-btn:active{transform:scale(.98)}
+    .v-res-btn .vr-icon{font-size:1.3rem;flex-shrink:0}
+    .v-res-btn .vr-label{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .v-res-btn .vr-arrow{font-size:.8rem;opacity:.6;flex-shrink:0}
+    .v-res-btn.video{background:#ef4444;color:#fff;box-shadow:0 3px 12px rgba(239,68,68,.35)}
+    .v-res-btn.audio{background:#a855f7;color:#fff;box-shadow:0 3px 12px rgba(168,85,247,.35)}
+    .v-res-btn.image{background:#06b6d4;color:#fff;box-shadow:0 3px 12px rgba(6,182,212,.35)}
+    .v-res-btn.link{background:#3b82f6;color:#fff;box-shadow:0 3px 12px rgba(59,130,246,.35)}
+    .v-res-btn.document{background:#f59e0b;color:#111;box-shadow:0 3px 12px rgba(245,158,11,.35)}
+    .v-res-empty{text-align:center;padding:1.5rem .8rem;color:var(--text-muted);font-size:.8rem}
+
+    /* ─── Active Media View ─── */
+    .v-media-view{display:none;flex-direction:column;flex:1;min-height:0}
+    .v-media-view.open{display:flex}
+    .v-media-bar{display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;flex-shrink:0}
+    .v-media-bar .vm-label{flex:1;font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .v-media-close{padding:.5rem 1rem;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:.78rem;font-weight:800;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:.3rem;box-shadow:0 2px 10px rgba(239,68,68,.3)}
+    .v-media-close:active{transform:scale(.96)}
+    .v-media-area{flex:1;display:flex;align-items:center;justify-content:center;padding:.4rem;overflow:auto}
+    .v-media-inner{width:100%;max-width:700px;border-radius:14px;overflow:hidden;background:var(--bg-card);position:relative}
+    .v-media-inner iframe{width:100%;aspect-ratio:16/9;border:none;display:block}
+    .v-media-inner video{width:100%;aspect-ratio:16/9;object-fit:contain;display:block;background:#000}
+    .v-media-inner audio{width:100%;padding:1.5rem}
+    .v-media-inner img{width:100%;max-height:55vh;object-fit:contain;display:block}
+    .v-media-error{padding:1.5rem;text-align:center;color:var(--danger);font-size:.78rem}
+    .v-media-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,13,26,.8);z-index:2;transition:opacity .3s}
+    .v-media-loading.hidden{opacity:0;pointer-events:none}
+    .v-spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ─── Navigation ─── */
+    .v-nav{display:flex;align-items:center;gap:.4rem;padding:.5rem .6rem;background:var(--bg-card);border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
+    .v-nav-btn{flex:1;padding:.75rem;border-radius:14px;border:none;font-size:.85rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;min-height:52px}
+    .v-nav-btn:active{transform:scale(.96)}
+    .v-nav-btn.prev{background:var(--accent);color:#fff;box-shadow:0 3px 12px rgba(139,92,246,.3)}
+    .v-nav-btn.next{background:var(--accent);color:#fff;box-shadow:0 3px 12px rgba(139,92,246,.3)}
+    .v-nav-btn.prev:hover,.v-nav-btn.next:hover{opacity:.9}
+    .v-nav-btn:disabled{opacity:.2;cursor:default;box-shadow:none}
+    .v-nav-btn.index{background:rgba(255,255,255,.1);color:var(--text);flex:.5}
+    .v-nav-btn.index:hover{background:rgba(255,255,255,.15)}
+
+    /* ─── Index Modal ─── */
+    .idx-bg{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;transition:all .3s}
+    .idx-bg.open{opacity:1;visibility:visible}
+    .idx-sheet{width:100%;max-width:500px;max-height:75dvh;background:var(--bg-modal);border-radius:20px 20px 0 0;overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column}
+    .idx-bg.open .idx-sheet{transform:translateY(0)}
+    .idx-top{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .idx-top h3{font-size:.9rem;font-weight:700}
+    .idx-close{width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.06);color:var(--text-dim);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .idx-list{flex:1;overflow-y:auto;padding:.5rem}
+    .idx-item{display:flex;align-items:center;gap:.6rem;padding:.65rem .8rem;border-radius:12px;cursor:pointer;transition:background .15s;min-height:50px}
+    .idx-item:hover{background:rgba(255,255,255,.04)}
+    .idx-item.current{background:rgba(139,92,246,.12)}
+    .idx-num{width:32px;height:32px;border-radius:50%;background:rgba(139,92,246,.15);color:var(--accent);font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .idx-item.current .idx-num{background:var(--accent);color:#fff}
+    .idx-info{flex:1;min-width:0}
+    .idx-title{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .idx-meta{font-size:.62rem;color:var(--text-muted)}
+
+    /* ─── Team banner ─── */
+    .v-team{padding:.3rem .8rem;background:rgba(139,92,246,.06);border-bottom:1px solid rgba(139,92,246,.1);text-align:center;font-size:.65rem;font-weight:600;color:var(--accent);letter-spacing:.03em;flex-shrink:0}
+
+    @media(min-width:700px){
+      .v-slide-header{max-width:600px;margin:0 auto}
+      .v-slide-title{font-size:1.3rem;padding:.5rem 1.1rem}
+      .v-slide-desc{font-size:.9rem;padding:.9rem 1.1rem}
+      .v-nav{padding:.5rem 1.5rem;gap:.6rem}
+      .v-res-list{max-width:500px;margin:0 auto}
+    }
+  </style>
+</head>
+<body>
+  <!-- ═══ LOAD SCREEN ═══ -->
+  <div id="load-screen">
+    <div class="load-logo">AURORA NOVA</div>
+    <div class="load-sub">Visor de Presentación Interactiva</div>
+    <div id="gallery-section" style="display:none">
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+    <div class="load-or" id="load-or">o carga desde tu dispositivo</div>
+    <div class="load-drop" id="load-drop">
+      <div class="ld-icon">📂</div>
+      <div class="ld-text">Toca para cargar el proyecto</div>
+      <div class="ld-hint">Selecciona el archivo .json exportado desde el editor</div>
+    </div>
+    <div class="load-badge">AURORA NOVA v1.0 — FLL Innovation Project</div>
+    <input type="file" id="load-file" accept=".json" style="display:none">
+  </div>
+
+  <!-- ═══ VIEWER ═══ -->
+  <div id="viewer">
+    <div class="v-topbar">
+      <div class="v-topbar-left">
+        <span class="v-brand">NOVA</span>
+        <span class="v-proj-name" id="v-proj-name"></span>
+      </div>
+      <span class="v-indicator" id="v-indicator">1 / 1</span>
+    </div>
+    <div class="v-team" id="v-team" style="display:none"></div>
+
+    <div class="v-content" id="v-content">
+      <div class="v-slide-header">
+        <h1 class="v-slide-title" id="v-title"></h1>
+        <p class="v-slide-desc" id="v-desc"></p>
+      </div>
+      <div class="v-res-list" id="v-res-list"></div>
+    </div>
+    <div class="v-media-view" id="v-media-view">
+      <div class="v-media-bar">
+        <span class="vm-label" id="vm-label"></span>
+        <button class="v-media-close" id="v-media-close">✕ Cerrar</button>
+      </div>
+      <div class="v-media-area">
+        <div class="v-media-inner" id="v-media"></div>
+      </div>
+    </div>
+
+    <div class="v-nav">
+      <button class="v-nav-btn prev" id="v-prev">← Anterior</button>
+      <button class="v-nav-btn index" id="v-index">☰ Índice</button>
+      <button class="v-nav-btn next" id="v-next">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ═══ INDEX MODAL ═══ -->
+  <div class="idx-bg" id="idx-bg">
+    <div class="idx-sheet">
+      <div class="idx-top"><h3>Índice de Slides</h3><button class="idx-close" id="idx-close">×</button></div>
+      <div class="idx-list" id="idx-list"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ════════════════════════════════════════════════════════════════
+       AURORA NOVA — Visor para Jurados FLL
+       Optimizado para dispositivos móviles.
+       Sin hipervínculos — toda la interacción es mediante botones.
+       ════════════════════════════════════════════════════════════════ */
+    const $=s=>document.querySelector(s);
+
+    const RES_ICONS = { video:'🎬', audio:'🎵', image:'🖼️', link:'🌐', document:'📄' };
+    let slides = [], projectName = '', teamName = '';
+    let currentSlide = 0, activeRes = -1;
+
+    // ─── Cargar archivo ───
+    function loadJSON(text){
+      try{
+        const data = JSON.parse(text);
+        projectName = data.project?.name || data.projectName || 'Presentación';
+        teamName = data.project?.team || data.teamName || '';
+        slides = (data.slides || []).map(s => ({
+          title: s.title || '',
+          description: s.description || '',
+          resources: (s.resources || []).map(r => ({
+            type: r.type || 'link',
+            url: r.url || '',
+            label: r.label || r.type || ''
+          }))
+        }));
+        if(!slides.length){ alert('El proyecto no tiene slides'); return }
+        currentSlide = 0;
+        activeRes = -1;
+        startViewer();
+      }catch(e){
+        alert('Error al leer el archivo: ' + e.message);
+      }
+    }
+
+    function startViewer(){
+      $('#load-screen').classList.add('hidden');
+      $('#viewer').classList.add('visible');
+      $('#v-proj-name').textContent = projectName;
+      if(teamName){
+        $('#v-team').style.display = '';
+        $('#v-team').textContent = `Equipo: ${teamName}`;
+      }
+      renderSlide();
+    }
+
+    function sanitizeHTML(html){
+      if(!html) return '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const allowed = new Set(['B','STRONG','MARK','BR','EM','I']);
+      function clean(node){
+        [...node.childNodes].forEach(child => {
+          if(child.nodeType === 3) return; // text node
+          if(child.nodeType === 1){
+            if(!allowed.has(child.tagName)){
+              while(child.firstChild) child.parentNode.insertBefore(child.firstChild, child);
+              child.parentNode.removeChild(child);
+            } else {
+              [...child.attributes].forEach(a => child.removeAttribute(a.name));
+              clean(child);
+            }
+          } else {
+            child.parentNode.removeChild(child);
+          }
+        });
+      }
+      clean(tmp);
+      return tmp.innerHTML;
+    }
+
+    // ─── Renderizar slide actual ───
+    function renderSlide(){
+      const s = slides[currentSlide];
+      if(!s) return;
+
+      $('#v-indicator').textContent = `${currentSlide+1} / ${slides.length}`;
+      $('#v-title').textContent = s.title;
+      const safeDesc = sanitizeHTML(s.description);
+      $('#v-desc').innerHTML = safeDesc;
+      $('#v-prev').disabled = currentSlide === 0;
+      $('#v-next').disabled = currentSlide === slides.length - 1;
+
+      // Cerrar media view, mostrar contenido
+      closeMediaView();
+
+      // Resource buttons (vertical list)
+      const list = $('#v-res-list');
+      list.innerHTML = '';
+      if(!s.resources.length){
+        list.innerHTML = '<div class="v-res-empty">Este slide no tiene recursos multimedia</div>';
+        return;
+      }
+      s.resources.forEach((r, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'v-res-btn ' + r.type;
+        btn.innerHTML = `<span class="vr-icon">${RES_ICONS[r.type]||'📎'}</span><span class="vr-label">${r.label}</span><span class="vr-arrow">▶</span>`;
+        btn.addEventListener('click', () => activateResource(i));
+        list.appendChild(btn);
+      });
+    }
+
+    function activateResource(i){
+      const s = slides[currentSlide];
+      if(!s || !s.resources[i]) return;
+      cleanupMedia();
+      activeRes = i;
+      const r = s.resources[i];
+      $('#vm-label').textContent = r.label;
+      $('#v-content').style.display = 'none';
+      $('#v-media-view').classList.add('open');
+      renderMedia(r);
+    }
+
+    function closeMediaView(){
+      cleanupMedia();
+      activeRes = -1;
+      $('#v-media-view').classList.remove('open');
+      $('#v-content').style.display = '';
+    }
+
+    function cleanupMedia(){
+      const media = $('#v-media');
+      media.querySelectorAll('video,audio').forEach(el => { el.pause(); el.src = '' });
+      media.innerHTML = '';
+    }
+
+    // ─── Renderizar medio activo ───
+    function renderMedia(r){
+      const media = $('#v-media');
+      const url = convertUrl(r.url, r.type);
+
+      switch(r.type){
+        case 'video':
+          if(isYouTube(r.url)){
+            media.innerHTML = `<iframe src="${url}" style="width:100%;aspect-ratio:16/9;border:none" allow="autoplay;encrypted-media;fullscreen" allowfullscreen></iframe>`;
+          } else {
+            media.innerHTML = `
+              <div class="v-media-loading" id="media-loader"><div class="v-spinner"></div></div>
+              <video src="${url}" controls playsinline style="width:100%;aspect-ratio:16/9;object-fit:contain;background:#000"></video>`;
+            const vid = media.querySelector('video');
+            const loader = $('#media-loader');
+            vid.addEventListener('canplay', () => loader?.classList.add('hidden'));
+            vid.addEventListener('error', () => {
+              loader?.classList.add('hidden');
+              media.innerHTML = `<div class="v-media-error">⚠️ No se pudo cargar el video<br><small style="color:var(--text-muted)">${r.url}</small></div>`;
+            });
+          }
+          break;
+
+        case 'audio':
+          media.innerHTML = `
+            <div style="padding:2rem;text-align:center;width:100%">
+              <div style="font-size:4rem;margin-bottom:1rem;opacity:.6">🎵</div>
+              <div style="font-size:.85rem;font-weight:600;margin-bottom:.8rem;color:var(--text)">${r.label}</div>
+              <audio src="${url}" controls style="width:100%;max-width:400px"></audio>
+            </div>`;
+          const aud = media.querySelector('audio');
+          aud?.addEventListener('error', () => {
+            media.innerHTML = `<div class="v-media-error">⚠️ No se pudo cargar el audio</div>`;
+          });
+          break;
+
+        case 'image':
+          media.innerHTML = `
+            <div class="v-media-loading" id="media-loader"><div class="v-spinner"></div></div>
+            <img src="${url}" alt="${r.label}" style="width:100%;max-height:55vh;object-fit:contain">`;
+          const img = media.querySelector('img');
+          img.addEventListener('load', () => $('#media-loader')?.classList.add('hidden'));
+          img.addEventListener('error', () => {
+            media.innerHTML = `<div class="v-media-error">⚠️ No se pudo cargar la imagen</div>`;
+          });
+          break;
+
+        case 'link':
+          media.innerHTML = `
+            <div class="v-media-loading" id="media-loader"><div class="v-spinner"></div></div>
+            <iframe src="${url}" style="width:100%;height:60vh;border:none" sandbox="allow-scripts allow-same-origin allow-popups" onload="document.getElementById('media-loader')?.classList.add('hidden')"></iframe>`;
+          break;
+
+        case 'document':
+          media.innerHTML = `
+            <div class="v-media-loading" id="media-loader"><div class="v-spinner"></div></div>
+            <iframe src="${url}" style="width:100%;height:60vh;border:none" onload="document.getElementById('media-loader')?.classList.add('hidden')"></iframe>`;
+          break;
+
+        default:
+          media.innerHTML = `<div class="v-media-placeholder">Tipo de recurso no soportado</div>`;
+      }
+    }
+
+    // ─── URL Conversion (Google Drive, YouTube, etc.) ───
+    function convertUrl(url, type){
+      if(isYouTube(url)){
+        const id = extractYouTubeId(url);
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+      const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+      if(driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+      const docsMatch = url.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/]+)/);
+      if(docsMatch){
+        const kind = docsMatch[1], id = docsMatch[2];
+        if(kind === 'presentation') return `https://docs.google.com/presentation/d/${id}/embed`;
+        return `https://docs.google.com/${kind}/d/${id}/preview`;
+      }
+      return url;
+    }
+
+    function isYouTube(url){ return /youtube\.com\/watch|youtu\.be\/|youtube\.com\/embed/.test(url) }
+    function extractYouTubeId(url){
+      const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?#]+)/);
+      return m ? m[1] : null;
+    }
+
+    // ─── Navegación ───
+    function goSlide(i){
+      if(i < 0 || i >= slides.length) return;
+      cleanupMedia();
+      currentSlide = i;
+      activeRes = -1;
+      renderSlide();
+      // Scroll al inicio
+      document.querySelector('.v-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openIndex(){
+      const list = $('#idx-list');
+      list.innerHTML = '';
+      slides.forEach((s, i) => {
+        const item = document.createElement('div');
+        item.className = 'idx-item' + (i === currentSlide ? ' current' : '');
+        const rc = s.resources.length;
+        item.innerHTML = `
+          <span class="idx-num">${i+1}</span>
+          <div class="idx-info">
+            <div class="idx-title">${s.title || 'Sin título'}</div>
+            <div class="idx-meta">${rc} recurso${rc!==1?'s':''}</div>
+          </div>`;
+        item.addEventListener('click', () => { goSlide(i); closeIndex() });
+        list.appendChild(item);
+      });
+      $('#idx-bg').classList.add('open');
+    }
+
+    function closeIndex(){ $('#idx-bg').classList.remove('open') }
+
+    // ─── Swipe gestures para móvil ───
+    let touchStartX = 0, touchStartY = 0;
+    document.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+      // Solo swipe horizontal significativo
+      if(Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5){
+        if(dx < 0) goSlide(currentSlide + 1); // swipe left → next
+        else goSlide(currentSlide - 1); // swipe right → prev
+      }
+    }, { passive: true });
+
+    // ═══ EVENT WIRING ═══
+
+    // Load
+    $('#load-drop').addEventListener('click', () => $('#load-file').click());
+    $('#load-drop').addEventListener('dragover', e => { e.preventDefault(); $('#load-drop').classList.add('dragover') });
+    $('#load-drop').addEventListener('dragleave', () => $('#load-drop').classList.remove('dragover'));
+    $('#load-drop').addEventListener('drop', e => {
+      e.preventDefault(); $('#load-drop').classList.remove('dragover');
+      if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
+    });
+    $('#load-file').addEventListener('change', e => { if(e.target.files[0]) readFile(e.target.files[0]); e.target.value = '' });
+
+    function readFile(file){
+      const reader = new FileReader();
+      reader.onload = e => loadJSON(e.target.result);
+      reader.readAsText(file);
+    }
+
+    // Media close
+    $('#v-media-close').addEventListener('click', () => { closeMediaView(); renderSlide() });
+
+    // Navigation
+    $('#v-prev').addEventListener('click', () => goSlide(currentSlide - 1));
+    $('#v-next').addEventListener('click', () => goSlide(currentSlide + 1));
+    $('#v-index').addEventListener('click', openIndex);
+    $('#idx-close').addEventListener('click', closeIndex);
+    $('#idx-bg').addEventListener('click', e => { if(e.target === $('#idx-bg')) closeIndex() });
+
+    // Keyboard (para cuando se usa desde desktop)
+    document.addEventListener('keydown', e => {
+      if(e.key === 'ArrowLeft') goSlide(currentSlide - 1);
+      else if(e.key === 'ArrowRight') goSlide(currentSlide + 1);
+      else if(e.key === 'Escape') closeIndex();
+    });
+
+    // ─── Galería de proyectos (carga automática desde el repo) ───
+    async function loadGallery(){
+      try{
+        const res = await fetch('nova-projects.json');
+        if(!res.ok) return;
+        const projects = await res.json();
+        if(!projects.length) return;
+        const grid = $('#gallery-grid');
+        grid.innerHTML = '';
+        projects.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'gallery-card';
+          card.innerHTML = `<div class="gallery-icon">${p.icon||'💡'}</div><div class="gallery-info"><div class="gallery-name">${p.name||''}</div><div class="gallery-team">${p.team||''}</div></div>`;
+          card.addEventListener('click', () => {
+            fetch(p.file)
+              .then(r => { if(!r.ok) throw new Error('404'); return r.text() })
+              .then(loadJSON)
+              .catch(() => alert('No se pudo cargar: ' + p.file));
+          });
+          grid.appendChild(card);
+        });
+        $('#gallery-section').style.display = '';
+      }catch(e){ console.log('No gallery manifest found') }
+    }
+
+    // ─── Auto-load from URL parameter or gallery ───
+    const params = new URLSearchParams(window.location.search);
+    const projectFile = params.get('project');
+    if(projectFile){
+      fetch(projectFile)
+        .then(r => { if(!r.ok) throw new Error('404'); return r.text() })
+        .then(loadJSON)
+        .catch(e => {
+          console.error('Error loading project:', e);
+          loadGallery();
+        });
+    } else {
+      loadGallery();
+    }
+  </script>
+</body>
+</html>

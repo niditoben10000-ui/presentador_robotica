@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "app": "aurora-nova",
+  "project": {
+    "name": "ALLARCH",
+    "team": "LEGOMOSNTERS",
+    "number": ""
+  },
+  "slides": [
+    {
+      "id": "s-177542086849667zry",
+      "title": "Identificación del Problema",
+      "description": "¿Qué problema real identificamos en nuestra comunidad? los hallazgos fortuitos, son hallazgos arqueológicos no planificados, que suceden repentinamente generalmente por personas no preparadas para evaluar el valor arqueológico de dichos hallazgos, el resultado es que dichos objetos pueden no ser tratados como se debe, pueden terminar en manos de quien no se debe o finalmente quedar en un lugar no adecuado para preservar nuestra identidad y cultura a través de ellos.",
+      "resources": [
+        {
+          "id": "r-1775421917607nc45z",
+          "type": "video",
+          "url": "https://res.cloudinary.com/dndqz36tv/video/upload/v1767416285/C2_l6xfwm.mp4",
+          "label": "Experto en el tam explica el porblema de forma técnica"
+        },
+        {
+          "id": "r-1775421966943tjv5q",
+          "type": "link",
+          "url": "https://www.youtube.com/watch?v=TDZoKKqyKsI",
+          "label": "referencia"
+        },
+        {
+          "id": "r-17754220523178kezo",
+          "type": "link",
+          "url": "https://museoarqueologico.univalle.edu.co/es-co/",
+          "label": "Museo Univalle"
+        }
+      ]
+    },
+    {
+      "id": "s-1775420868496oksgj",
+      "title": "Investigación",
+      "description": "¿Qué descubrimos al investigar el problema? ¿A quiénes consultamos?",
+      "resources": []
+    },
+    {
+      "id": "s-1775420868496sqn8f",
+      "title": "Nuestra Solución",
+      "description": "¿Cuál es nuestra propuesta innovadora para resolver el problema?",
+      "resources": []
+    },
+    {
+      "id": "s-1775420868496yaph1",
+      "title": "Prototipo y Diseño",
+      "description": "¿Cómo construimos y diseñamos nuestra solución?",
+      "resources": []
+    },
+    {
+      "id": "s-1775420868496g2iqz",
+      "title": "Pruebas y Resultados",
+      "description": "¿Cómo probamos nuestra solución? ¿Qué resultados obtuvimos?",
+      "resources": []
+    },
+    {
+      "id": "s-17754208684967rqmy",
+      "title": "Impacto en la Comunidad",
+      "description": "¿Cómo nuestra solución beneficia a la comunidad?",
+      "resources": []
+    },
+    {
+      "id": "s-17754208684962lb3j",
+      "title": "Plan de Compartir",
+      "description": "¿Cómo compartimos nuestra innovación con otros?",
+      "resources": []
+    }
+  ],
+  "exportedAt": "2026-04-05T20:48:09.404Z"
+}

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AURORA NOVA — Editor de Presentación</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#080d1a;--bg-card:#111827;--bg-modal:#151d30;--bg-input:#1e293b;
+      --accent:#8b5cf6;--cyan:#06b6d4;--amber:#f59e0b;--rose:#f43f5e;
+      --nova1:#8b5cf6;--nova2:#06b6d4;--nova3:#f59e0b;
+      --text:#f1f5f9;--text-dim:#94a3b8;--text-muted:#475569;
+      --success:#10b981;--danger:#ef4444;
+      --radius:12px;--sidebar-w:300px;
+      --video-color:#ef4444;--audio-color:#8b5cf6;--image-color:#06b6d4;
+      --link-color:#3b82f6;--doc-color:#f59e0b
+    }
+    html,body{height:100%;width:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+    button,input,textarea,select{font-family:inherit}
+
+    /* ═══ SPLASH ═══ */
+    #splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);transition:opacity .8s,visibility .8s}
+    #splash.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .splash-logo{font-size:2.8rem;font-weight:900;letter-spacing:.06em;background:linear-gradient(135deg,var(--nova1),var(--nova2),var(--nova3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem}
+    .splash-sub{font-size:.85rem;color:var(--text-dim);margin-bottom:2rem;letter-spacing:.03em}
+    .splash-actions{display:flex;flex-direction:column;gap:.8rem;width:min(90vw,320px)}
+    .splash-btn{padding:.85rem 1.5rem;border-radius:50px;border:none;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .splash-btn:hover{transform:scale(1.03)}
+    .splash-btn.primary{background:linear-gradient(135deg,var(--nova1),var(--nova2));color:#fff;box-shadow:0 4px 25px rgba(139,92,246,.3)}
+    .splash-btn.secondary{background:rgba(255,255,255,.06);color:var(--text-dim);border:1px solid rgba(255,255,255,.1)}
+    .splash-version{position:absolute;bottom:1.5rem;font-size:.65rem;color:var(--text-muted)}
+
+    /* ═══ APP LAYOUT ═══ */
+    #app{display:flex;height:100dvh;width:100%;opacity:0;transition:opacity .4s}
+    #app.visible{opacity:1}
+
+    /* ─── Sidebar ─── */
+    #sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-card);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;z-index:20;transition:margin-left .3s}
+    #sidebar.collapsed{margin-left:calc(var(--sidebar-w)*-1)}
+    .sb-header{padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+    .sb-brand{font-size:.9rem;font-weight:900;letter-spacing:.04em;background:linear-gradient(135deg,var(--nova1),var(--nova2),var(--nova3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .sb-badge{font-size:.5rem;font-weight:700;padding:.15rem .4rem;border-radius:50px;background:rgba(139,92,246,.15);color:var(--accent);border:1px solid rgba(139,92,246,.3);letter-spacing:.06em}
+    .sb-close{width:28px;height:28px;border-radius:8px;border:none;background:rgba(255,255,255,.06);color:var(--text-dim);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+    /* ─── Project Info ─── */
+    .sb-project{padding:.8rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .sb-project input{width:100%;padding:.4rem .6rem;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:var(--bg-input);color:var(--text);font-size:.78rem;margin-bottom:.4rem}
+    .sb-project input:focus{outline:none;border-color:var(--accent)}
+    .sb-project label{font-size:.6rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.2rem}
+
+    /* ─── Slide List ─── */
+    .sb-slides{flex:1;overflow-y:auto;padding:.6rem .5rem;scrollbar-width:thin}
+    .sb-slides::-webkit-scrollbar{width:4px}
+    .sb-slides::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .slide-card{display:flex;align-items:center;gap:.5rem;padding:.55rem .6rem;border-radius:10px;border:1.5px solid transparent;cursor:pointer;transition:all .15s;margin-bottom:.3rem;position:relative}
+    .slide-card:hover{background:rgba(255,255,255,.04)}
+    .slide-card.active{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3)}
+    .slide-card.dragging{opacity:.4}
+    .slide-num{width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,.15);color:var(--accent);font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .slide-card.active .slide-num{background:var(--accent);color:#fff}
+    .slide-info{flex:1;min-width:0}
+    .slide-title-preview{font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .slide-res-count{font-size:.6rem;color:var(--text-muted)}
+    .slide-drag{cursor:grab;color:var(--text-muted);font-size:.8rem;padding:.2rem}
+    .slide-del{width:22px;height:22px;border-radius:6px;border:none;background:none;color:var(--text-muted);font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+    .slide-card:hover .slide-del{opacity:1}
+    .slide-del:hover{background:rgba(239,68,68,.15);color:var(--danger)}
+    .add-slide-btn{display:flex;align-items:center;justify-content:center;gap:.3rem;width:100%;padding:.5rem;border-radius:10px;border:1.5px dashed rgba(139,92,246,.3);background:none;color:var(--accent);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:.3rem}
+    .add-slide-btn:hover{background:rgba(139,92,246,.08);border-color:var(--accent)}
+
+    /* ─── Footer ─── */
+    .sb-footer{padding:.5rem .6rem;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-wrap:wrap;gap:.35rem}
+    .sb-footer .f-btn{flex:1;min-width:calc(50% - .2rem);padding:.45rem .4rem;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text-dim);font-size:.65rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .2s}
+    .sb-footer .f-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+    .sb-footer .f-btn.export{background:linear-gradient(135deg,var(--nova1),var(--nova2));color:#fff;border-color:transparent}
+    .sb-footer .f-btn.export:hover{opacity:.9}
+
+    /* ═══ MAIN AREA ═══ */
+    #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;background:var(--bg-card);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+    .topbar-left{display:flex;align-items:center;gap:.5rem}
+    .topbar-toggle{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text-dim);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .topbar-title{font-weight:700;font-size:.88rem}
+
+    /* ─── Editor Area ─── */
+    #editor-area{flex:1;overflow-y:auto;padding:1.5rem;max-width:800px;margin:0 auto;width:100%;scrollbar-width:thin}
+    #editor-area::-webkit-scrollbar{width:4px}
+    #editor-area::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .no-slide{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);text-align:center;gap:.5rem}
+    .no-slide .ns-icon{font-size:3rem;opacity:.3}
+    .no-slide .ns-text{font-size:.85rem}
+
+    .ed-section{margin-bottom:1.5rem}
+    .ed-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:.4rem;display:flex;align-items:center;gap:.3rem}
+    .ed-input{width:100%;padding:.6rem .8rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:var(--bg-input);color:var(--text);font-size:1rem;font-weight:600}
+    .ed-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+    .ed-textarea{width:100%;padding:.6rem .8rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:var(--bg-input);color:var(--text);font-size:.85rem;min-height:80px;resize:vertical;line-height:1.5}
+    .ed-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+
+    .ed-toolbar{display:flex;gap:.3rem;margin-bottom:.3rem}
+    .ed-toolbar button{padding:.3rem .65rem;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:var(--text-dim);font-size:.75rem;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.25rem;line-height:1}
+    .ed-toolbar button:hover{background:rgba(255,255,255,.1);color:var(--text)}
+    .ed-toolbar button.active{background:rgba(139,92,246,.2);border-color:var(--accent);color:var(--accent)}
+    .ed-richtext{width:100%;padding:.6rem .8rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:var(--bg-input);color:var(--text);font-size:.85rem;min-height:80px;line-height:1.6;outline:none;overflow-y:auto;max-height:300px}
+    .ed-richtext:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+    .ed-richtext b,.ed-richtext strong{font-weight:800;color:#fff}
+    .ed-richtext mark{background:rgba(251,191,36,.35);color:#fbbf24;border-radius:3px;padding:0 2px}
+    .ed-richtext:empty::before{content:attr(data-placeholder);color:var(--text-muted);pointer-events:none}
+
+    /* ─── Resources ─── */
+    .res-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+    .res-list{display:flex;flex-direction:column;gap:.4rem}
+    .res-card{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:10px;background:var(--bg-card);border:1px solid rgba(255,255,255,.06);transition:all .15s}
+    .res-card:hover{border-color:rgba(255,255,255,.12)}
+    .res-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;font-weight:700}
+    .res-icon.video{background:rgba(239,68,68,.15);color:var(--video-color)}
+    .res-icon.audio{background:rgba(139,92,246,.15);color:var(--audio-color)}
+    .res-icon.image{background:rgba(6,182,212,.15);color:var(--image-color)}
+    .res-icon.link{background:rgba(59,130,246,.15);color:var(--link-color)}
+    .res-icon.document{background:rgba(245,158,11,.15);color:var(--doc-color)}
+    .res-info{flex:1;min-width:0}
+    .res-label{font-size:.78rem;font-weight:600}
+    .res-url{font-size:.6rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .res-actions{display:flex;gap:.25rem}
+    .res-actions button{width:26px;height:26px;border-radius:6px;border:none;background:none;color:var(--text-muted);font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .res-actions button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+    .res-actions .del:hover{background:rgba(239,68,68,.15);color:var(--danger)}
+    .add-res-btn{display:flex;align-items:center;justify-content:center;gap:.3rem;width:100%;padding:.55rem;border-radius:10px;border:1.5px dashed rgba(6,182,212,.3);background:none;color:var(--cyan);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:.5rem}
+    .add-res-btn:hover{background:rgba(6,182,212,.08);border-color:var(--cyan)}
+    .res-empty{text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.75rem;border:1.5px dashed rgba(255,255,255,.08);border-radius:10px}
+
+    /* ═══ RESOURCE MODAL ═══ */
+    .modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:all .3s}
+    .modal-bg.open{opacity:1;visibility:visible}
+    .modal-box{width:min(92vw,480px);background:var(--bg-modal);border-radius:16px;border:1px solid rgba(255,255,255,.08);overflow:hidden;transform:translateY(20px) scale(.97);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+    .modal-bg.open .modal-box{transform:translateY(0) scale(1)}
+    .modal-top{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .modal-top h3{font-size:.95rem;font-weight:700}
+    .modal-x{width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.06);color:var(--text-dim);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .modal-body{padding:1rem}
+    .m-group{margin-bottom:.8rem}
+    .m-label{font-size:.7rem;font-weight:600;color:var(--text-dim);margin-bottom:.3rem;display:block}
+    .m-input,.m-select{width:100%;padding:.5rem .7rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:var(--bg-input);color:var(--text);font-size:.82rem}
+    .m-input:focus,.m-select:focus{outline:none;border-color:var(--accent)}
+    .type-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem}
+    .type-btn{padding:.5rem .2rem;border-radius:10px;border:2px solid rgba(255,255,255,.06);background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:.2rem;transition:all .15s;color:var(--text-dim)}
+    .type-btn .t-icon{font-size:1.3rem}
+    .type-btn .t-name{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .type-btn:hover{background:rgba(255,255,255,.04)}
+    .type-btn.selected{border-color:var(--accent);background:rgba(139,92,246,.1);color:var(--text)}
+    .type-btn.selected.video{border-color:var(--video-color);background:rgba(239,68,68,.1)}
+    .type-btn.selected.audio{border-color:var(--audio-color);background:rgba(139,92,246,.1)}
+    .type-btn.selected.image{border-color:var(--image-color);background:rgba(6,182,212,.1)}
+    .type-btn.selected.link{border-color:var(--link-color);background:rgba(59,130,246,.1)}
+    .type-btn.selected.document{border-color:var(--doc-color);background:rgba(245,158,11,.1)}
+    .modal-actions{display:flex;gap:.4rem;padding:.8rem 1rem;border-top:1px solid rgba(255,255,255,.06)}
+    .modal-actions button{flex:1;padding:.55rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+    .ma-cancel{background:rgba(255,255,255,.06);color:var(--text-dim)}
+    .ma-save{background:var(--accent);color:#fff}
+    .ma-save:hover{opacity:.9}
+
+    /* ═══ PREVIEW OVERLAY ═══ */
+    #preview-overlay{position:fixed;inset:0;z-index:150;background:var(--bg);display:flex;flex-direction:column;opacity:0;visibility:hidden;transition:all .4s}
+    #preview-overlay.open{opacity:1;visibility:visible}
+    .preview-topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:var(--bg-card);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+    .preview-topbar h3{font-size:.85rem;font-weight:700}
+    .preview-close{padding:.4rem .8rem;border-radius:8px;border:none;background:rgba(255,255,255,.08);color:var(--text);font-size:.75rem;font-weight:600;cursor:pointer}
+    .preview-body{flex:1;overflow-y:auto;padding:1rem}
+    .preview-slide{max-width:600px;margin:0 auto;text-align:center}
+    .preview-slide h2{font-size:1.3rem;font-weight:800;margin-bottom:.3rem}
+    .preview-slide p{font-size:.85rem;color:var(--text-dim);margin-bottom:1rem;line-height:1.5}
+    .preview-slide p b,.preview-slide p strong{font-weight:800;color:#f1f5f9}
+    .preview-slide p mark{background:rgba(251,191,36,.3);color:#fbbf24;border-radius:3px;padding:0 2px}
+    .preview-res-list{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin-bottom:1rem}
+    .preview-res-btn{padding:.5rem 1rem;border-radius:50px;border:none;font-size:.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.3rem;transition:all .15s}
+    .preview-content{width:100%;min-height:200px;border-radius:12px;overflow:hidden;background:var(--bg-card);display:flex;align-items:center;justify-content:center}
+    .preview-content iframe,.preview-content video,.preview-content audio{width:100%;border:none}
+    .preview-content video{max-height:400px;object-fit:contain}
+    .preview-content img{max-width:100%;max-height:400px;object-fit:contain}
+    .preview-content audio{padding:1rem}
+    .preview-nav{display:flex;align-items:center;justify-content:center;gap:1rem;padding:.8rem;background:var(--bg-card);border-top:1px solid rgba(255,255,255,.06)}
+    .preview-nav button{padding:.5rem 1.2rem;border-radius:50px;border:none;font-size:.8rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.08);color:var(--text);transition:all .15s}
+    .preview-nav button:hover{background:rgba(255,255,255,.15)}
+    .preview-nav button:disabled{opacity:.3;cursor:default}
+    .preview-nav .pn-indicator{font-size:.75rem;color:var(--text-dim);font-weight:600;min-width:60px;text-align:center}
+
+    @media(max-width:768px){
+      #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30}
+      .sb-project{padding:.6rem .8rem}
+      #editor-area{padding:1rem}
+    }
+  </style>
+</head>
+<body>
+  <!-- ═══ SPLASH ═══ -->
+  <div id="splash">
+    <div class="splash-logo">AURORA NOVA</div>
+    <div class="splash-sub">Presenta tu innovación al mundo</div>
+    <div class="splash-actions">
+      <button class="splash-btn primary" id="sp-new">✦ Nuevo Proyecto</button>
+      <button class="splash-btn secondary" id="sp-import">📥 Importar proyecto .json</button>
+      <button class="splash-btn secondary" id="sp-continue" style="display:none">↩ Continuar editando</button>
+    </div>
+    <div class="splash-version">AURORA NOVA v1.0 — FLL Innovation Project</div>
+    <input type="file" id="sp-file" accept=".json" style="display:none">
+  </div>
+
+  <!-- ═══ APP ═══ -->
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sb-header">
+        <span class="sb-brand">AURORA NOVA</span>
+        <span class="sb-badge">EDITOR</span>
+      </div>
+      <div class="sb-project">
+        <label>Nombre del Proyecto</label>
+        <input type="text" id="proj-name" placeholder="Ej: Smart Water Monitor">
+        <label>Equipo</label>
+        <input type="text" id="proj-team" placeholder="Ej: UNHEARTED">
+      </div>
+      <div class="sb-slides" id="slide-list"></div>
+      <button class="add-slide-btn" id="add-slide-btn">+ Agregar Slide</button>
+      <div class="sb-footer">
+        <button class="f-btn" id="f-save">💾 Guardar</button>
+        <button class="f-btn" id="f-import">📥 Importar</button>
+        <button class="f-btn export" id="f-export">📤 Exportar .json</button>
+        <button class="f-btn" id="f-preview">🎬 Vista previa</button>
+      </div>
+    </aside>
+
+    <div id="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="topbar-toggle" id="toggle-sidebar">☰</button>
+          <span class="topbar-title" id="topbar-title">AURORA NOVA</span>
+        </div>
+      </div>
+      <div id="editor-area">
+        <div class="no-slide" id="empty-state">
+          <div class="ns-icon">✦</div>
+          <div class="ns-text">Selecciona o crea un slide para comenzar</div>
+        </div>
+        <div id="slide-editor" style="display:none">
+          <div class="ed-section">
+            <div class="ed-label">Título del Slide</div>
+            <input class="ed-input" id="ed-title" placeholder="Ej: Identificación del Problema">
+          </div>
+          <div class="ed-section">
+            <div class="ed-label">Descripción</div>
+            <div class="ed-toolbar">
+              <button id="fmt-bold" title="Negrita (Ctrl+B)"><b>N</b> Negrita</button>
+              <button id="fmt-highlight" title="Resaltar texto">✦ Resaltar</button>
+            </div>
+            <div class="ed-richtext" id="ed-desc" contenteditable="true" data-placeholder="Breve descripción de lo que se presenta en este slide..."></div>
+          </div>
+          <div class="ed-section">
+            <div class="res-header">
+              <div class="ed-label" style="margin:0">Recursos del Slide</div>
+              <button class="add-res-btn" id="add-res-btn" style="width:auto;padding:.35rem .8rem;margin:0;border-style:solid">+ Recurso</button>
+            </div>
+            <div class="res-list" id="res-list"></div>
+            <div class="res-empty" id="res-empty">Sin recursos — agrega videos, imágenes, audios o enlaces</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RESOURCE MODAL ═══ -->
+  <div class="modal-bg" id="res-modal">
+    <div class="modal-box">
+      <div class="modal-top"><h3 id="res-modal-title">Agregar Recurso</h3><button class="modal-x" id="res-modal-x">×</button></div>
+      <div class="modal-body">
+        <div class="m-group">
+          <span class="m-label">Tipo de recurso</span>
+          <div class="type-grid" id="type-grid">
+            <button class="type-btn" data-type="video"><span class="t-icon">🎬</span><span class="t-name">Video</span></button>
+            <button class="type-btn" data-type="audio"><span class="t-icon">🎵</span><span class="t-name">Audio</span></button>
+            <button class="type-btn" data-type="image"><span class="t-icon">🖼️</span><span class="t-name">Imagen</span></button>
+            <button class="type-btn" data-type="link"><span class="t-icon">🌐</span><span class="t-name">Enlace</span></button>
+            <button class="type-btn" data-type="document"><span class="t-icon">📄</span><span class="t-name">Doc</span></button>
+          </div>
+        </div>
+        <div class="m-group">
+          <span class="m-label">Etiqueta descriptiva</span>
+          <input class="m-input" id="res-label" placeholder="Ej: Video explicativo del problema">
+        </div>
+        <div class="m-group">
+          <span class="m-label">URL del recurso</span>
+          <input class="m-input" id="res-url" placeholder="https://...">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="ma-cancel" id="res-cancel">Cancelar</button>
+        <button class="ma-save" id="res-save">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PREVIEW ═══ -->
+  <div id="preview-overlay">
+    <div class="preview-topbar">
+      <h3 id="preview-proj-name">Vista Previa</h3>
+      <button class="preview-close" id="preview-close">✕ Cerrar</button>
+    </div>
+    <div class="preview-body" id="preview-body"></div>
+    <div class="preview-nav">
+      <button id="pv-prev">← Anterior</button>
+      <span class="pn-indicator" id="pv-indicator">1 / 1</span>
+      <button id="pv-next">Siguiente →</button>
+    </div>
+  </div>
+
+  <input type="file" id="import-file" accept=".json" style="display:none">
+
+  <script>
+    /* ════════════════════════════════════════════════════════════════
+       AURORA NOVA — Editor de Presentación para FLL Innovation Project
+       ════════════════════════════════════════════════════════════════ */
+    const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
+    // ─── Estado de la aplicación ───
+    let project = {
+      version: 1,
+      app: 'aurora-nova',
+      project: { name: '', team: '', number: '' },
+      slides: []
+    };
+    let activeSlideIdx = -1;
+    let editingResIdx = -1;
+    const STORAGE_KEY = 'aurora_nova_project';
+    const RES_ICONS = { video:'🎬', audio:'🎵', image:'🖼️', link:'🌐', document:'📄' };
+
+    // ─── Plantillas de slides para un proyecto FLL de innovación ───
+    const TEMPLATE_SLIDES = [
+      { title:'Identificación del Problema', description:'¿Qué problema real identificamos en nuestra comunidad?' },
+      { title:'Investigación', description:'¿Qué descubrimos al investigar el problema? ¿A quiénes consultamos?' },
+      { title:'Nuestra Solución', description:'¿Cuál es nuestra propuesta innovadora para resolver el problema?' },
+      { title:'Prototipo y Diseño', description:'¿Cómo construimos y diseñamos nuestra solución?' },
+      { title:'Pruebas y Resultados', description:'¿Cómo probamos nuestra solución? ¿Qué resultados obtuvimos?' },
+      { title:'Impacto en la Comunidad', description:'¿Cómo nuestra solución beneficia a la comunidad?' },
+      { title:'Plan de Compartir', description:'¿Cómo compartimos nuestra innovación con otros?' }
+    ];
+
+    // ─── Funciones de utilidad ───
+    function uid(){ return 's-' + Date.now() + Math.random().toString(36).substr(2,5) }
+    function resUid(){ return 'r-' + Date.now() + Math.random().toString(36).substr(2,5) }
+
+    // ─── Inicialización ───
+    function init(){
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if(saved){
+        try{
+          const p = JSON.parse(saved);
+          if(p.slides && p.slides.length){
+            $('#sp-continue').style.display = '';
+          }
+        }catch{}
+      }
+    }
+
+    function startNew(){
+      project.project.name = '';
+      project.project.team = '';
+      project.slides = TEMPLATE_SLIDES.map(t => ({
+        id: uid(),
+        title: t.title,
+        description: t.description,
+        resources: []
+      }));
+      activeSlideIdx = 0;
+      enterApp();
+    }
+
+    function loadFromJSON(json){
+      try{
+        const p = JSON.parse(json);
+        project.project.name = p.project?.name || p.projectName || '';
+        project.project.team = p.project?.team || p.teamName || '';
+        project.slides = (p.slides || []).map(s => ({
+          id: s.id || uid(),
+          title: s.title || '',
+          description: s.description || '',
+          resources: (s.resources || []).map(r => ({
+            id: r.id || resUid(),
+            type: r.type || 'link',
+            url: r.url || '',
+            label: r.label || ''
+          }))
+        }));
+        activeSlideIdx = project.slides.length ? 0 : -1;
+        enterApp();
+      }catch(e){
+        alert('Error al leer el archivo JSON: ' + e.message);
+      }
+    }
+
+    function continueSaved(){
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if(saved) loadFromJSON(saved);
+      else startNew();
+    }
+
+    function enterApp(){
+      $('#splash').classList.add('hidden');
+      $('#app').classList.add('visible');
+      syncUI();
+      autoSave();
+    }
+
+    // ─── Render de la lista de slides ───
+    function renderSlideList(){
+      const ctr = $('#slide-list');
+      ctr.innerHTML = '';
+      project.slides.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = 'slide-card' + (i === activeSlideIdx ? ' active' : '');
+        card.draggable = true;
+        card.dataset.idx = i;
+        const rc = s.resources.length;
+        card.innerHTML = `
+          <span class="slide-drag" title="Arrastrar">⠿</span>
+          <span class="slide-num">${i+1}</span>
+          <div class="slide-info">
+            <div class="slide-title-preview">${s.title || 'Sin título'}</div>
+            <div class="slide-res-count">${rc} recurso${rc!==1?'s':''}</div>
+          </div>
+          <button class="slide-del" title="Eliminar">✕</button>`;
+        card.addEventListener('click', e => {
+          if(e.target.closest('.slide-del') || e.target.closest('.slide-drag')) return;
+          selectSlide(i);
+        });
+        card.querySelector('.slide-del').addEventListener('click', () => deleteSlide(i));
+        // Drag & drop para reordenar
+        card.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); card.classList.add('dragging') });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('dragover', e => { e.preventDefault(); card.style.borderTopColor = 'var(--accent)' });
+        card.addEventListener('dragleave', () => card.style.borderTopColor = '');
+        card.addEventListener('drop', e => {
+          e.preventDefault(); card.style.borderTopColor = '';
+          const from = parseInt(e.dataTransfer.getData('text/plain'));
+          const to = i;
+          if(from === to) return;
+          const [moved] = project.slides.splice(from, 1);
+          project.slides.splice(to, 0, moved);
+          if(activeSlideIdx === from) activeSlideIdx = to;
+          else if(from < activeSlideIdx && to >= activeSlideIdx) activeSlideIdx--;
+          else if(from > activeSlideIdx && to <= activeSlideIdx) activeSlideIdx++;
+          syncUI();
+          autoSave();
+        });
+        ctr.appendChild(card);
+      });
+    }
+
+    function selectSlide(i){
+      activeSlideIdx = i;
+      syncUI();
+    }
+
+    function deleteSlide(i){
+      if(!confirm(`¿Eliminar slide "${project.slides[i].title || 'Sin título'}"?`)) return;
+      project.slides.splice(i, 1);
+      if(activeSlideIdx >= project.slides.length) activeSlideIdx = project.slides.length - 1;
+      syncUI();
+      autoSave();
+    }
+
+    function addSlide(){
+      project.slides.push({ id: uid(), title: '', description: '', resources: [] });
+      activeSlideIdx = project.slides.length - 1;
+      syncUI();
+      autoSave();
+      setTimeout(() => $('#ed-title')?.focus(), 100);
+    }
+
+    // ─── Render del editor de slide activo ───
+    function renderSlideEditor(){
+      if(activeSlideIdx < 0 || activeSlideIdx >= project.slides.length){
+        $('#empty-state').style.display = '';
+        $('#slide-editor').style.display = 'none';
+        return;
+      }
+      $('#empty-state').style.display = 'none';
+      $('#slide-editor').style.display = '';
+      const s = project.slides[activeSlideIdx];
+      $('#ed-title').value = s.title;
+      $('#ed-desc').innerHTML = s.description;
+      renderResources();
+    }
+
+    function renderResources(){
+      const s = project.slides[activeSlideIdx];
+      if(!s) return;
+      const list = $('#res-list'), empty = $('#res-empty');
+      list.innerHTML = '';
+      if(!s.resources.length){ empty.style.display = ''; return }
+      empty.style.display = 'none';
+      s.resources.forEach((r, i) => {
+        const card = document.createElement('div');
+        card.className = 'res-card';
+        card.innerHTML = `
+          <div class="res-icon ${r.type}">${RES_ICONS[r.type] || '📎'}</div>
+          <div class="res-info">
+            <div class="res-label">${r.label || r.type}</div>
+            <div class="res-url">${r.url}</div>
+          </div>
+          <div class="res-actions">
+            <button class="edit" title="Editar">✎</button>
+            <button class="del" title="Eliminar">✕</button>
+          </div>`;
+        card.querySelector('.edit').addEventListener('click', () => openResModal(i));
+        card.querySelector('.del').addEventListener('click', () => {
+          s.resources.splice(i, 1);
+          renderResources();
+          autoSave();
+        });
+        list.appendChild(card);
+      });
+    }
+
+    // ─── Modal de recurso ───
+    function openResModal(idx){
+      editingResIdx = idx;
+      const s = project.slides[activeSlideIdx];
+      const r = idx >= 0 ? s.resources[idx] : null;
+      $('#res-modal-title').textContent = r ? 'Editar Recurso' : 'Agregar Recurso';
+      $('#res-label').value = r?.label || '';
+      $('#res-url').value = r?.url || '';
+      $$('.type-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.type === (r?.type || ''));
+        if(b.dataset.type === (r?.type || '')) b.classList.add(b.dataset.type);
+      });
+      $('#res-modal').classList.add('open');
+      setTimeout(() => $('#res-label').focus(), 100);
+    }
+
+    function closeResModal(){
+      $('#res-modal').classList.remove('open');
+      editingResIdx = -1;
+    }
+
+    function saveResource(){
+      const type = document.querySelector('.type-btn.selected')?.dataset.type;
+      if(!type){ alert('Selecciona un tipo de recurso'); return }
+      const label = $('#res-label').value.trim();
+      const url = $('#res-url').value.trim();
+      if(!url){ alert('Ingresa la URL del recurso'); return }
+      if(!label){ alert('Ingresa una etiqueta descriptiva'); return }
+      const s = project.slides[activeSlideIdx];
+      const obj = { id: resUid(), type, label, url };
+      if(editingResIdx >= 0){
+        obj.id = s.resources[editingResIdx].id;
+        s.resources[editingResIdx] = obj;
+      } else {
+        s.resources.push(obj);
+      }
+      closeResModal();
+      renderResources();
+      autoSave();
+    }
+
+    // ─── Sincronizar toda la UI ───
+    function syncUI(){
+      $('#proj-name').value = project.project.name;
+      $('#proj-team').value = project.project.team;
+      $('#topbar-title').textContent = project.project.name || 'AURORA NOVA';
+      renderSlideList();
+      renderSlideEditor();
+    }
+
+    // ─── Auto guardado en localStorage ───
+    function autoSave(){
+      // Capturar valores actuales del editor
+      if(activeSlideIdx >= 0 && activeSlideIdx < project.slides.length){
+        const s = project.slides[activeSlideIdx];
+        s.title = $('#ed-title').value;
+        s.description = $('#ed-desc').innerHTML;
+      }
+      project.project.name = $('#proj-name').value;
+      project.project.team = $('#proj-team').value;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    }
+
+    // ─── Exportar JSON ───
+    function exportProject(){
+      autoSave();
+      const out = {
+        version: 1,
+        app: 'aurora-nova',
+        project: { ...project.project },
+        slides: project.slides.map(s => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          resources: s.resources.map(r => ({ id: r.id, type: r.type, url: r.url, label: r.label }))
+        })),
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (project.project.name || 'aurora-nova-project').replace(/\s+/g, '-').toLowerCase() + '.json';
+      a.click();
+    }
+
+    function importFile(file){
+      const reader = new FileReader();
+      reader.onload = e => loadFromJSON(e.target.result);
+      reader.readAsText(file);
+    }
+
+    // ─── Vista previa ───
+    let previewIdx = 0;
+    let previewActiveRes = -1;
+
+    function openPreview(){
+      autoSave();
+      if(!project.slides.length){ alert('Agrega al menos un slide'); return }
+      previewIdx = 0;
+      previewActiveRes = -1;
+      renderPreview();
+      $('#preview-overlay').classList.add('open');
+    }
+
+    function closePreview(){
+      $('#preview-overlay').classList.remove('open');
+      const body = $('#preview-body');
+      body.querySelectorAll('video,audio').forEach(el => { el.pause(); el.src = '' });
+    }
+
+    function renderPreview(){
+      const s = project.slides[previewIdx];
+      if(!s) return;
+      $('#preview-proj-name').textContent = project.project.name || 'Vista Previa';
+      $('#pv-indicator').textContent = `${previewIdx+1} / ${project.slides.length}`;
+      $('#pv-prev').disabled = previewIdx === 0;
+      $('#pv-next').disabled = previewIdx === project.slides.length - 1;
+
+      const body = $('#preview-body');
+      // Limpiar medios previos
+      body.querySelectorAll('video,audio').forEach(el => { el.pause(); el.src = '' });
+
+      let resButtons = '';
+      const colors = { video:'background:rgba(239,68,68,.15);color:#ef4444', audio:'background:rgba(139,92,246,.15);color:#8b5cf6', image:'background:rgba(6,182,212,.15);color:#06b6d4', link:'background:rgba(59,130,246,.15);color:#3b82f6', document:'background:rgba(245,158,11,.15);color:#f59e0b' };
+      s.resources.forEach((r,i) => {
+        const active = i === previewActiveRes;
+        resButtons += `<button class="preview-res-btn" style="${active ? colors[r.type]+';box-shadow:0 2px 10px rgba(0,0,0,.3)' : 'background:rgba(255,255,255,.06);color:var(--text-dim)'}" data-ri="${i}">${RES_ICONS[r.type]} ${r.label}</button>`;
+      });
+
+      let content = '<div style="padding:2rem;color:var(--text-muted);font-size:.85rem">Selecciona un recurso para visualizarlo</div>';
+      if(previewActiveRes >= 0 && s.resources[previewActiveRes]){
+        content = renderResourceContent(s.resources[previewActiveRes]);
+      }
+
+      body.innerHTML = `
+        <div class="preview-slide">
+          <h2>${s.title || 'Sin título'}</h2>
+          <p>${s.description || ''}</p>
+          ${s.resources.length ? `<div class="preview-res-list">${resButtons}</div>` : ''}
+          <div class="preview-content">${content}</div>
+        </div>`;
+
+      body.querySelectorAll('.preview-res-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          previewActiveRes = parseInt(btn.dataset.ri);
+          renderPreview();
+        });
+      });
+    }
+
+    function renderResourceContent(r){
+      const url = convertUrl(r.url, r.type);
+      switch(r.type){
+        case 'video':
+          if(isYouTube(r.url)){
+            return `<iframe src="${url}" style="width:100%;aspect-ratio:16/9" allow="autoplay;encrypted-media" allowfullscreen></iframe>`;
+          }
+          return `<video src="${url}" controls playsinline style="width:100%;aspect-ratio:16/9;object-fit:contain"></video>`;
+        case 'audio':
+          return `<div style="padding:2rem;width:100%;text-align:center"><div style="font-size:3rem;margin-bottom:1rem">🎵</div><audio src="${url}" controls style="width:100%;max-width:400px"></audio></div>`;
+        case 'image':
+          return `<img src="${url}" alt="${r.label}" style="max-width:100%;max-height:450px;object-fit:contain">`;
+        case 'link':
+          return `<iframe src="${url}" style="width:100%;height:400px;border:none" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
+        case 'document':
+          return `<iframe src="${url}" style="width:100%;height:450px;border:none"></iframe>`;
+        default:
+          return `<div style="padding:2rem;color:var(--text-muted)">Tipo no soportado</div>`;
+      }
+    }
+
+    // Convierte URLs de Google Drive y YouTube a formato embebible
+    function convertUrl(url, type){
+      // YouTube
+      if(isYouTube(url)){
+        const id = extractYouTubeId(url);
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+      // Google Drive file → preview/embed
+      const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+      if(driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+      // Google Docs/Sheets/Slides
+      const docsMatch = url.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([^/]+)/);
+      if(docsMatch){
+        const kind = docsMatch[1];
+        const id = docsMatch[2];
+        if(kind === 'presentation') return `https://docs.google.com/presentation/d/${id}/embed`;
+        return `https://docs.google.com/${kind}/d/${id}/preview`;
+      }
+      return url;
+    }
+
+    function isYouTube(url){
+      return /youtube\.com\/watch|youtu\.be\/|youtube\.com\/embed/.test(url);
+    }
+
+    function extractYouTubeId(url){
+      const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?#]+)/);
+      return m ? m[1] : null;
+    }
+
+    // ═══ EVENT WIRING ═══
+
+    // Splash
+    $('#sp-new').addEventListener('click', startNew);
+    $('#sp-import').addEventListener('click', () => $('#sp-file').click());
+    $('#sp-file').addEventListener('change', e => { if(e.target.files[0]) importFile(e.target.files[0]); e.target.value = '' });
+    $('#sp-continue').addEventListener('click', continueSaved);
+
+    // Sidebar toggle
+    $('#toggle-sidebar').addEventListener('click', () => $('#sidebar').classList.toggle('collapsed'));
+
+    // Project info auto-save
+    $('#proj-name').addEventListener('input', () => { project.project.name = $('#proj-name').value; $('#topbar-title').textContent = project.project.name || 'AURORA NOVA'; autoSave() });
+    $('#proj-team').addEventListener('input', () => { project.project.team = $('#proj-team').value; autoSave() });
+
+    // Slide editor auto-save
+    $('#ed-title').addEventListener('input', () => {
+      if(activeSlideIdx >= 0) {
+        project.slides[activeSlideIdx].title = $('#ed-title').value;
+        renderSlideList();
+        autoSave();
+      }
+    });
+    $('#ed-desc').addEventListener('input', () => { autoSave() });
+
+    // Formato de texto: Negrita
+    $('#fmt-bold').addEventListener('click', () => {
+      document.execCommand('bold');
+      $('#ed-desc').focus();
+      autoSave();
+    });
+
+    // Formato de texto: Resaltar
+    $('#fmt-highlight').addEventListener('click', () => {
+      const sel = window.getSelection();
+      if(!sel.rangeCount || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const parent = sel.anchorNode.parentElement;
+      if(parent && parent.tagName === 'MARK'){
+        const text = document.createTextNode(parent.textContent);
+        parent.parentNode.replaceChild(text, parent);
+      } else {
+        const mark = document.createElement('mark');
+        range.surroundContents(mark);
+      }
+      $('#ed-desc').focus();
+      autoSave();
+    });
+
+    // Atajos de teclado dentro del editor de descripción
+    $('#ed-desc').addEventListener('keydown', e => {
+      if(e.ctrlKey || e.metaKey){
+        if(e.key === 'b' || e.key === 'B'){
+          e.preventDefault();
+          document.execCommand('bold');
+          autoSave();
+        }
+      }
+    });
+
+    // Add slide
+    $('#add-slide-btn').addEventListener('click', addSlide);
+
+    // Resource modal
+    $('#add-res-btn').addEventListener('click', () => openResModal(-1));
+    $$('.type-btn').forEach(btn => btn.addEventListener('click', () => {
+      $$('.type-btn').forEach(b => { b.classList.remove('selected'); b.classList.remove(b.dataset.type) });
+      btn.classList.add('selected', btn.dataset.type);
+    }));
+    $('#res-save').addEventListener('click', saveResource);
+    $('#res-cancel').addEventListener('click', closeResModal);
+    $('#res-modal-x').addEventListener('click', closeResModal);
+    $('#res-modal').addEventListener('click', e => { if(e.target === $('#res-modal')) closeResModal() });
+
+    // Footer actions
+    $('#f-save').addEventListener('click', () => { autoSave(); alert('Proyecto guardado en el navegador') });
+    $('#f-export').addEventListener('click', exportProject);
+    $('#f-import').addEventListener('click', () => $('#import-file').click());
+    $('#import-file').addEventListener('change', e => { if(e.target.files[0]) importFile(e.target.files[0]); e.target.value = '' });
+    $('#f-preview').addEventListener('click', openPreview);
+
+    // Preview
+    $('#preview-close').addEventListener('click', closePreview);
+    $('#pv-prev').addEventListener('click', () => { if(previewIdx > 0){ previewIdx--; previewActiveRes = -1; renderPreview() }});
+    $('#pv-next').addEventListener('click', () => { if(previewIdx < project.slides.length-1){ previewIdx++; previewActiveRes = -1; renderPreview() }});
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Escape'){
+        closeResModal();
+        closePreview();
+      }
+    });
+
+    // ─── Arranque ───
+    init();
+  </script>
+</body>
+</html>

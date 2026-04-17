@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Robot FLL - Modelo 3D Interactivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0b0f1a;
+      --bg-card: #151b2e;
+      --bg-modal: #1a2035;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --cyan: #06b6d4;
+      --hotspot: #f59e0b;
+      --hotspot-glow: rgba(245, 158, 11, 0.45);
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --radius: 16px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app {
+      display: flex; flex-direction: column;
+      height: 100dvh; width: 100%;
+    }
+
+    /* ─── INTRO ─── */
+    #intro {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #intro.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    #intro h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 0.5rem;
+    }
+    #intro .subtitle { font-size: clamp(1rem, 2.5vw, 1.4rem); color: var(--text-dim); margin-bottom: 1rem; }
+    #intro .hint { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 2rem; opacity: 0.7; }
+    #intro .start-btn {
+      padding: 1rem 3rem; font-size: 1.1rem; font-weight: 700;
+      font-family: inherit; border: none; border-radius: 50px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      color: white; cursor: pointer;
+      box-shadow: 0 4px 25px var(--accent-glow);
+      transition: transform 0.2s;
+    }
+    #intro .start-btn:active { transform: scale(0.96); }
+
+    /* ─── HEADER ─── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 1.5rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0; z-index: 10;
+    }
+    .team-info { display: flex; align-items: center; gap: 0.75rem; }
+    .team-logo {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 800;
+    }
+    .team-name { font-weight: 700; font-size: 1rem; }
+    .team-season { font-size: 0.75rem; color: var(--text-dim); }
+    .header-controls { display: flex; align-items: center; gap: 0.6rem; }
+    .header-badge {
+      padding: 0.35rem 0.9rem; border-radius: 50px;
+      background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3);
+      color: var(--cyan); font-size: 0.75rem; font-weight: 600;
+    }
+    .format-badge {
+      padding: 0.35rem 0.7rem; border-radius: 50px;
+      background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+      color: var(--success); font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; display: none;
+    }
+    .format-badge.visible { display: inline-block; }
+    .editor-toggle {
+      padding: 0.35rem 0.7rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05); color: var(--text-dim);
+      font-size: 0.72rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .editor-toggle.active {
+      background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: var(--danger);
+    }
+
+    /* ─── 3D CANVAS ─── */
+    main { flex: 1; position: relative; overflow: hidden; }
+
+    #canvas {
+      width: 100%; height: 100%; display: block;
+      touch-action: none;
+    }
+
+    #hotspot-layer {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 5;
+      overflow: hidden;
+      display: none;
+    }
+    #hotspot-layer.visible { display: block; }
+
+    .no-model-msg {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: var(--text-dim); text-align: center;
+      padding: 2rem; z-index: 3;
+    }
+    .no-model-msg svg { margin-bottom: 1rem; opacity: 0.4; }
+    .no-model-msg p { margin-bottom: 0.5rem; font-size: 0.95rem; }
+    .no-model-msg code {
+      background: rgba(255,255,255,0.08); padding: 0.2rem 0.5rem;
+      border-radius: 4px; font-size: 0.85rem;
+    }
+    .no-model-msg.hidden { display: none; }
+
+    /* ─── LOADING ─── */
+    #loading-3d {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(11,15,26,0.85); z-index: 4;
+    }
+    #loading-3d.visible { display: flex; }
+    .load-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-text { margin-top: 1rem; font-size: 0.9rem; color: var(--text-dim); }
+    .load-progress {
+      width: 200px; height: 4px; margin-top: 0.8rem;
+      background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+    }
+    .load-progress-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .load-error {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(11,15,26,0.9); z-index: 4;
+      color: var(--danger); text-align: center; padding: 2rem;
+    }
+    .load-error.visible { display: flex; }
+    .load-error p { margin-top: 0.5rem; font-size: 0.85rem; max-width: 400px; }
+    .load-error .retry-btn {
+      margin-top: 1rem; padding: 0.5rem 1.5rem;
+      border-radius: 50px; border: 1px solid var(--danger);
+      background: rgba(239,68,68,0.15); color: var(--danger);
+      font-family: inherit; font-weight: 600; font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    /* ─── 3D HOTSPOTS (overlays) ─── */
+    .hotspot-3d {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex; align-items: center; gap: 0.4rem;
+      pointer-events: auto; cursor: pointer;
+      border: none; background: none; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s ease, opacity 0.3s ease;
+      z-index: 6;
+    }
+    .hotspot-3d:active { transform: translate(-50%, -50%) scale(0.9); }
+    .hotspot-3d.behind { opacity: 0; pointer-events: none; }
+
+    .hotspot-3d .dot {
+      width: 40px; height: 40px;
+      border-radius: 50%; background: var(--hotspot);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem; font-weight: 800; color: #1a1a2e;
+      box-shadow: 0 0 0 0 var(--hotspot-glow);
+      animation: pulse3d 2.5s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    .hotspot-3d .tag {
+      background: var(--bg-card); border: 1px solid rgba(255,255,255,0.12);
+      padding: 0.25rem 0.65rem; border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem; font-weight: 600; color: var(--text);
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    @keyframes pulse3d {
+      0%   { box-shadow: 0 0 0 0 var(--hotspot-glow); }
+      50%  { box-shadow: 0 0 0 12px rgba(245,158,11,0); }
+      100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    }
+
+    /* ─── EDITOR MODE ─── */
+    #coord-display {
+      position: fixed; bottom: 80px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-card); border: 1px solid var(--danger);
+      border-radius: var(--radius); padding: 0.8rem 1.2rem;
+      font-size: 0.8rem; z-index: 20;
+      display: none; max-width: 90vw;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #coord-display.visible { display: block; }
+    #coord-display code {
+      background: rgba(255,255,255,0.1); padding: 0.2rem 0.4rem;
+      border-radius: 4px; font-size: 0.85rem;
+    }
+    #coord-display .hint { color: var(--text-dim); font-size: 0.72rem; margin-top: 0.4rem; }
+
+    /* ─── BOTTOM NAV ─── */
+    #bottom-nav {
+      display: flex; align-items: center;
+      gap: 0.5rem; padding: 0.6rem 1rem;
+      background: var(--bg-card);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto; flex-shrink: 0;
+      scrollbar-width: none; z-index: 10;
+    }
+    #bottom-nav::-webkit-scrollbar { display: none; }
+
+    .nav-pill {
+      flex-shrink: 0; display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem; border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim); font-size: 0.78rem; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .nav-pill:active { transform: scale(0.95); }
+    .nav-pill .pill-num {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--hotspot);
+      color: #1a1a2e; font-size: 0.7rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-pill.active {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.4); color: var(--text);
+    }
+    .nav-hint {
+      flex-shrink: 0; color: var(--text-dim);
+      font-size: 0.7rem; padding: 0 0.5rem; opacity: 0.6;
+    }
+
+    /* ─── VIDEO MODAL ─── */
+    #modal-overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    #modal-overlay.open { opacity: 1; visibility: visible; }
+
+    .modal-card {
+      width: min(92vw, 720px); max-height: 90dvh;
+      background: var(--bg-modal); border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      transform: translateY(30px) scale(0.95);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+    #modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 1.3rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .modal-header-left { display: flex; align-items: center; gap: 0.7rem; }
+    .modal-number {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--hotspot); color: #1a1a2e;
+      font-weight: 800; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 700; }
+    .modal-close {
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.08); color: var(--text-dim);
+      font-size: 1.3rem; cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.25); color: var(--danger); }
+
+    .modal-video-wrapper {
+      position: relative; background: #000;
+      aspect-ratio: 16/9; width: 100%;
+    }
+    .modal-video-wrapper video {
+      width: 100%; height: 100%; object-fit: contain; display: block;
+    }
+    .video-loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6);
+      transition: opacity 0.3s;
+    }
+    .video-loading.hidden { opacity: 0; pointer-events: none; }
+    .video-loading .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .video-loading span { margin-top: 0.7rem; font-size: 0.8rem; color: var(--text-dim); }
+    .video-error {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.8);
+      color: var(--danger); font-size: 0.85rem; text-align: center; padding: 1rem;
+    }
+    .video-error.show { display: flex; }
+    .modal-body { padding: 1rem 1.3rem 1.3rem; overflow-y: auto; }
+    .modal-description { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
+
+    @media (orientation: portrait) {
+      .modal-card { width: min(96vw, 720px); }
+    }
+
+    /* ─── EXPLODE CONTROL ─── */
+    #explode-panel {
+      position: absolute; bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      display: none; align-items: center; gap: 0.8rem;
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50px;
+      padding: 0.5rem 1.2rem;
+      z-index: 8;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #explode-panel.visible { display: flex; }
+    #explode-panel label {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--text-dim); white-space: nowrap;
+    }
+    #explode-slider {
+      width: 180px; height: 6px;
+      -webkit-appearance: none; appearance: none;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px; outline: none;
+      cursor: pointer;
+    }
+    #explode-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 22px; height: 22px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: 2px solid var(--bg-card);
+      box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+      cursor: grab;
+    }
+    #explode-pct {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent); min-width: 32px; text-align: right;
+    }
+    .explode-btn {
+      padding: 0.45rem 0.9rem; border-radius: 50px;
+      border: 1px solid rgba(59,130,246,0.3);
+      background: rgba(59,130,246,0.15);
+      color: var(--accent);
+      font-size: 0.75rem; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .explode-btn:active { transform: scale(0.95); }
+    .explode-btn.active {
+      background: var(--accent); color: white;
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="intro">
+      <h1 id="intro-team"></h1>
+      <p class="subtitle" id="intro-robot"></p>
+      <p class="hint">Rota el modelo 3D y toca los componentes para explorar</p>
+      <button class="start-btn" id="start-btn">Explorar en 3D</button>
+    </div>
+
+    <header>
+      <div class="team-info">
+        <div class="team-logo" id="header-logo"></div>
+        <div>
+          <div class="team-name" id="header-team"></div>
+          <div class="team-season" id="header-season"></div>
+        </div>
+      </div>
+      <div class="header-controls">
+        <span class="format-badge" id="format-badge"></span>
+        <button class="editor-toggle" id="editor-btn" title="Clic en el modelo para obtener coordenadas">
+          Modo Editor
+        </button>
+        <span class="header-badge">MODELO 3D</span>
+      </div>
+    </header>
+
+    <main id="scene-container">
+      <canvas id="canvas"></canvas>
+      <div id="hotspot-layer"></div>
+
+      <div id="explode-panel">
+        <button class="explode-btn" id="explode-toggle">Despiece</button>
+        <label>Separación</label>
+        <input type="range" id="explode-slider" min="0" max="100" value="0">
+        <span id="explode-pct">0%</span>
+      </div>
+
+      <div id="loading-3d">
+        <div class="load-spinner"></div>
+        <span class="load-text">Cargando modelo 3D...</span>
+        <div class="load-progress"><div class="load-progress-bar" id="progress-bar"></div></div>
+      </div>
+
+      <div class="load-error" id="load-error">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+        <p id="error-text">No se pudo cargar el modelo 3D.</p>
+        <button class="retry-btn" id="retry-btn">Reintentar</button>
+      </div>
+
+      <div class="no-model-msg" id="no-model-msg">
+        <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+        <p>Coloca tu modelo 3D en la carpeta <code>assets/</code></p>
+        <p style="font-size:0.8rem;margin-top:0.3rem">Formatos soportados: <strong>.dae</strong> (Collada), <strong>.obj</strong>, <strong>.glb</strong>, <strong>.gltf</strong></p>
+        <p style="font-size:0.75rem;margin-top:0.3rem;opacity:0.6">Actualiza <code>modeloRobot</code> en CONFIG</p>
+      </div>
+    </main>
+
+    <div id="coord-display">
+      <div>Coordenadas: <code id="coord-text">Haz clic en el modelo</code></div>
+      <div class="hint">Copia estos valores a la configuración de tu hotspot (campos: posicion y normal)</div>
+    </div>
+
+    <nav id="bottom-nav">
+      <span class="nav-hint">Componentes →</span>
+    </nav>
+
+    <div id="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <span class="modal-number" id="modal-num"></span>
+            <span class="modal-title" id="modal-title"></span>
+          </div>
+          <button class="modal-close" id="modal-close-btn" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-video-wrapper">
+          <video id="modal-video" playsinline controls preload="none"></video>
+          <div class="video-loading" id="video-loading">
+            <div class="spinner"></div>
+            <span>Cargando video...</span>
+          </div>
+          <div class="video-error" id="video-error">
+            <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span>No se pudo cargar el video.<br>Verifica tu conexión a internet.</span>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description" id="modal-desc"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js via ES Module importmap (funciona en Chrome 89+, incluida la Lenovo M11) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+    // ╔══════════════════════════════════════════════════════════════════════╗
+    // ║  CONFIGURACIÓN DEL EQUIPO - ¡EDITA ESTA SECCIÓN!                  ║
+    // ║                                                                    ║
+    // ║  FORMATOS SOPORTADOS:                                             ║
+    // ║  • .dae  (Collada) ← Exporta directo desde BrickLink Studio      ║
+    // ║  • .obj  (Wavefront OBJ) ← Exporta desde BrickLink Studio        ║
+    // ║  • .glb  (GL Binary) ← Si conviertes con herramienta online      ║
+    // ║  • .gltf (GL Transmission Format)                                 ║
+    // ║                                                                    ║
+    // ║  En BrickLink Studio: File → Export As → Export as Collada (.dae) ║
+    // ║  Coloca el archivo en la carpeta assets/                          ║
+    // ╚══════════════════════════════════════════════════════════════════════╝
+
+    const CONFIG = {
+      equipo: {
+        nombre: 'EQUIPO FLL',
+        iniciales: 'FL',
+        temporada: 'SUBMERGED 2025-2026',
+        nombreRobot: 'ROBOT EXPLORADOR',
+      },
+
+      // Ruta al modelo 3D — acepta .dae, .obj, .glb, .gltf
+      // Ejemplo: 'assets/robot.dae' (Collada directo de BrickLink)
+      modeloRobot: 'assets/robot.glb',
+
+      cloudinaryBase: 'https://res.cloudinary.com/TU_CLOUD_NAME/video/upload/',
+
+      // ┌─────────────────────────────────────────────────────────────────┐
+      // │  COMPONENTES 3D                                                 │
+      // │  posicion = coordenadas 3D "x y z" del punto en el modelo      │
+      // │  (Usa el Modo Editor para obtener estos valores:                │
+      // │   activa el botón, haz clic en el modelo, copia coordenadas)   │
+      // └─────────────────────────────────────────────────────────────────┘
+      // ┌─────────────────────────────────────────────────────────────────┐
+      // │  CÓMO AGREGAR TUS COMPONENTES:                                 │
+      // │  1. Recarga la página y haz clic en "Modo Editor"              │
+      // │  2. Haz clic en el componente del robot que quieras marcar     │
+      // │  3. Copia la coordenada "posicion" que aparece abajo           │
+      // │  4. Pega aquí como un nuevo bloque (copia el ejemplo)          │
+      // │  5. Repite para cada componente                                │
+      // └─────────────────────────────────────────────────────────────────┘
+      componentes: [
+        // Ejemplo (descomenta y edita):
+        // {
+        //   id: 'mi-componente',
+        //   nombre: 'Nombre del Componente',
+        //   descripcion: 'Descripción que aparece debajo del video.',
+        //   posicion: '0.0000 0.1500 0.0000',  // ← del Modo Editor
+        //   video: 'nombre-del-video.mp4',
+        // },
+      ],
+    };
+
+    // ╔══════════════════════════════════════════════════════════════╗
+    // ║  CÓDIGO DE LA APLICACIÓN (no necesitas modificar)          ║
+    // ╚══════════════════════════════════════════════════════════════╝
+
+    const $ = (sel) => document.querySelector(sel);
+    const canvas = $('#canvas');
+    const container = $('#scene-container');
+    const hotspotLayer = $('#hotspot-layer');
+    const videoEl = $('#modal-video');
+    const overlay = $('#modal-overlay');
+    const loadingEl = $('#video-loading');
+    const errorEl = $('#video-error');
+
+    let editorMode = false;
+    let model = null;
+    let hotspotElements = [];
+    let hotspotPositions = [];
+
+    // ─── Three.js setup ───
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      container.clientWidth / container.clientHeight,
+      0.01,
+      100
+    );
+    camera.position.set(0, 0.4, 1.2);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.5;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    dirLight2.position.set(-5, 5, -5);
+    scene.add(dirLight2);
+    scene.add(new THREE.HemisphereLight(0x87CEEB, 0x444444, 0.5));
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 1.5;
+    controls.minDistance = 0.3;
+    controls.maxDistance = 5;
+    controls.target.set(0, 0, 0);
+
+    // Raycaster for editor mode
+    const raycaster = new THREE.Raycaster();
+    const mouseVec = new THREE.Vector2();
+
+    // ─── Format detection & model loading ───
+
+    function getFormat(url) {
+      const ext = url.split('.').pop().toLowerCase().split('?')[0].split('#')[0];
+      return ext;
+    }
+
+    function getLoader(format) {
+      switch (format) {
+        case 'glb': case 'gltf': return new GLTFLoader();
+        case 'dae': return new ColladaLoader();
+        case 'obj': return new OBJLoader();
+        default: return null;
+      }
+    }
+
+    function extractScene(result, format) {
+      switch (format) {
+        case 'glb': case 'gltf': return result.scene;
+        case 'dae': return result.scene;
+        case 'obj': return result;
+        default: return result.scene || result;
+      }
+    }
+
+    async function loadModel(url) {
+      const format = getFormat(url);
+      const loader = getLoader(format);
+
+      if (!loader) {
+        throw new Error(`Formato ".${format}" no soportado. Usa .dae, .obj, .glb o .gltf`);
+      }
+
+      const loadingDiv = $('#loading-3d');
+      const progressBar = $('#progress-bar');
+      loadingDiv.classList.add('visible');
+
+      return new Promise((resolve, reject) => {
+        loader.load(
+          url,
+          (result) => {
+            const loaded = extractScene(result, format);
+            loadingDiv.classList.remove('visible');
+
+            // Show format badge and hotspots
+            const badge = $('#format-badge');
+            badge.textContent = format.toUpperCase();
+            badge.classList.add('visible');
+            hotspotLayer.classList.add('visible');
+
+            resolve(loaded);
+          },
+          (progress) => {
+            if (progress.lengthComputable) {
+              const pct = (progress.loaded / progress.total) * 100;
+              progressBar.style.width = pct + '%';
+            } else {
+              progressBar.style.width = '60%';
+            }
+          },
+          (error) => {
+            loadingDiv.classList.remove('visible');
+            reject(error);
+          }
+        );
+      });
+    }
+
+    function centerAndScaleModel(obj) {
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      if (maxDim === 0) return;
+
+      const targetSize = 0.6;
+      const scale = targetSize / maxDim;
+
+      obj.position.sub(center.multiplyScalar(scale));
+      obj.scale.multiplyScalar(scale);
+
+      // Recalculate for camera
+      const newBox = new THREE.Box3().setFromObject(obj);
+      const newCenter = newBox.getCenter(new THREE.Vector3());
+      controls.target.copy(newCenter);
+      camera.position.set(
+        newCenter.x,
+        newCenter.y + targetSize * 0.6,
+        newCenter.z + targetSize * 1.8
+      );
+    }
+
+    // OBJ files often load without materials — give them a decent default
+    function ensureMaterials(obj, format) {
+      if (format !== 'obj') return;
+      const defaultMat = new THREE.MeshStandardMaterial({
+        color: 0x888888,
+        roughness: 0.6,
+        metalness: 0.1,
+      });
+      obj.traverse((child) => {
+        if (child.isMesh && !child.material?.map) {
+          if (!child.material || (child.material.color && child.material.color.getHex() === 0xffffff)) {
+            child.material = defaultMat;
+          }
+        }
+      });
+    }
+
+    // ─── Hotspot system ───
+
+    function createHotspotOverlays() {
+      hotspotElements = [];
+      hotspotPositions = [];
+      hotspotLayer.innerHTML = '';
+
+      CONFIG.componentes.forEach((comp, i) => {
+        const parts = comp.posicion.trim().split(/\s+/).map(Number);
+        const pos = new THREE.Vector3(parts[0], parts[1], parts[2]);
+        hotspotPositions.push(pos);
+
+        const btn = document.createElement('button');
+        btn.className = 'hotspot-3d';
+        btn.innerHTML = `
+          <span class="dot" style="animation-delay:${i * 0.3}s">${i + 1}</span>
+          <span class="tag">${comp.nombre}</span>`;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!editorMode) openModal(i);
+        });
+        hotspotLayer.appendChild(btn);
+        hotspotElements.push(btn);
+      });
+    }
+
+    function updateHotspotPositions() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      hotspotPositions.forEach((worldPos, i) => {
+        const projected = worldPos.clone().project(camera);
+        const x = (projected.x * 0.5 + 0.5) * w;
+        const y = (-projected.y * 0.5 + 0.5) * h;
+        const behind = projected.z > 1;
+
+        const el = hotspotElements[i];
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.classList.toggle('behind', behind);
+      });
+    }
+
+    // ─── UI ───
+
+    function initUI() {
+      const { equipo } = CONFIG;
+      $('#intro-team').textContent = equipo.nombre;
+      $('#intro-robot').textContent = equipo.nombreRobot;
+      $('#header-logo').textContent = equipo.iniciales;
+      $('#header-team').textContent = equipo.nombre;
+      $('#header-season').textContent = equipo.temporada;
+      buildNavPills();
+    }
+
+    function buildNavPills() {
+      const nav = $('#bottom-nav');
+      CONFIG.componentes.forEach((comp, i) => {
+        const pill = document.createElement('button');
+        pill.className = 'nav-pill';
+        pill.innerHTML = `<span class="pill-num">${i + 1}</span> ${comp.nombre}`;
+        pill.addEventListener('click', () => openModal(i));
+        nav.appendChild(pill);
+      });
+    }
+
+    function resolveVideoUrl(comp) {
+      if (comp.video.startsWith('http://') || comp.video.startsWith('https://')) {
+        return comp.video;
+      }
+      return CONFIG.cloudinaryBase + comp.video;
+    }
+
+    function openModal(index) {
+      const comp = CONFIG.componentes[index];
+      $('#modal-num').textContent = index + 1;
+      $('#modal-title').textContent = comp.nombre;
+      $('#modal-desc').textContent = comp.descripcion;
+
+      loadingEl.classList.remove('hidden');
+      errorEl.classList.remove('show');
+
+      const url = resolveVideoUrl(comp);
+      videoEl.src = url;
+      videoEl.oncanplay = () => loadingEl.classList.add('hidden');
+      videoEl.onerror = () => { loadingEl.classList.add('hidden'); errorEl.classList.add('show'); };
+      videoEl.load();
+      videoEl.play().catch(() => {});
+
+      overlay.classList.add('open');
+      controls.autoRotate = false;
+      document.querySelectorAll('.nav-pill').forEach((p, i) =>
+        p.classList.toggle('active', i === index));
+    }
+
+    function closeModal() {
+      overlay.classList.remove('open');
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.load();
+      document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+    }
+
+    // ─── Editor mode ───
+
+    function setupEditorMode() {
+      renderer.domElement.addEventListener('click', (e) => {
+        if (!editorMode || !model) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouseVec, camera);
+        const hits = raycaster.intersectObject(model, true);
+
+        if (hits.length > 0) {
+          const p = hits[0].point;
+          const coordStr = `${p.x.toFixed(4)} ${p.y.toFixed(4)} ${p.z.toFixed(4)}`;
+          $('#coord-text').innerHTML = `posicion: <strong>"${coordStr}"</strong>`;
+        }
+      });
+
+      $('#editor-btn').addEventListener('click', () => {
+        editorMode = !editorMode;
+        const btn = $('#editor-btn');
+        btn.classList.toggle('active', editorMode);
+        btn.textContent = editorMode ? 'Salir del Editor' : 'Modo Editor';
+        $('#coord-display').classList.toggle('visible', editorMode);
+      });
+    }
+
+    // ─── Animation loop ───
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+      if (model) updateHotspotPositions();
+    }
+
+    // ─── Responsive ───
+
+    function onResize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    window.addEventListener('resize', onResize);
+
+    // ─── Explode system ───
+
+    let explodeParts = [];
+    let explodeAmount = 0;
+    let explodeActive = false;
+
+    function setupExplode() {
+      if (!model) return;
+
+      const meshes = [];
+      model.traverse((child) => {
+        if (child.isMesh) meshes.push(child);
+      });
+
+      if (meshes.length < 2) return;
+
+      // Compute in GEOMETRY local space (ignoring parent scale transforms)
+      const overallBox = new THREE.Box3();
+      meshes.forEach((m) => {
+        m.geometry.computeBoundingBox();
+        if (m.geometry.boundingBox) overallBox.union(m.geometry.boundingBox);
+      });
+
+      const overallCenter = overallBox.getCenter(new THREE.Vector3());
+      const overallSize = overallBox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(overallSize.x, overallSize.y, overallSize.z);
+
+      explodeParts = meshes.map((mesh) => {
+        mesh.geometry.computeBoundingBox();
+        const meshCenter = mesh.geometry.boundingBox.getCenter(new THREE.Vector3());
+        const direction = new THREE.Vector3().subVectors(meshCenter, overallCenter);
+        if (direction.length() < maxDim * 0.01) {
+          direction.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+        }
+        direction.normalize();
+        return {
+          mesh,
+          originalPos: mesh.position.clone(),
+          direction,
+          distance: maxDim * 0.4,
+        };
+      });
+
+      const panel = $('#explode-panel');
+      panel.classList.add('visible');
+
+      const slider = $('#explode-slider');
+      const pctLabel = $('#explode-pct');
+      const toggleBtn = $('#explode-toggle');
+
+      slider.addEventListener('input', () => {
+        explodeAmount = parseInt(slider.value) / 100;
+        pctLabel.textContent = slider.value + '%';
+        applyExplode();
+        toggleBtn.classList.toggle('active', explodeAmount > 0);
+      });
+
+      toggleBtn.addEventListener('click', () => {
+        explodeActive = !explodeActive;
+        const target = explodeActive ? 60 : 0;
+        animateExplodeTo(target);
+      });
+    }
+
+    function applyExplode() {
+      explodeParts.forEach(({ mesh, originalPos, direction, distance }) => {
+        mesh.position.copy(originalPos).addScaledVector(direction, distance * explodeAmount);
+      });
+    }
+
+    function animateExplodeTo(targetPct) {
+      const slider = $('#explode-slider');
+      const pctLabel = $('#explode-pct');
+      const toggleBtn = $('#explode-toggle');
+      const startPct = parseInt(slider.value);
+      const startTime = performance.now();
+      const duration = 600;
+
+      function step(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const current = Math.round(startPct + (targetPct - startPct) * ease);
+        slider.value = current;
+        pctLabel.textContent = current + '%';
+        explodeAmount = current / 100;
+        applyExplode();
+        toggleBtn.classList.toggle('active', current > 0);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ─── Init ───
+
+    async function init() {
+      initUI();
+      createHotspotOverlays();
+      setupEditorMode();
+      animate();
+
+      if (CONFIG.modeloRobot) {
+        $('#no-model-msg').classList.add('hidden');
+        try {
+          const format = getFormat(CONFIG.modeloRobot);
+          model = await loadModel(CONFIG.modeloRobot);
+          ensureMaterials(model, format);
+          scene.add(model);
+          centerAndScaleModel(model);
+          setupExplode();
+        } catch (err) {
+          console.error('Error cargando modelo:', err);
+          const errorDiv = $('#load-error');
+          $('#error-text').textContent = `Error: ${err.message || 'No se pudo cargar el modelo. Asegúrate de usar un servidor local (no file://).'}`;
+          errorDiv.classList.add('visible');
+        }
+      }
+
+      $('#start-btn').addEventListener('click', () => {
+        $('#intro').classList.add('hidden');
+      });
+
+      $('#modal-close-btn').addEventListener('click', closeModal);
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+      });
+
+      $('#retry-btn').addEventListener('click', () => {
+        $('#load-error').classList.remove('visible');
+        if (CONFIG.modeloRobot) location.reload();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>

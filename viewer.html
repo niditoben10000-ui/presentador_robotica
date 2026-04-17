@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AURORA 3D — Visor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#06080f;--bg-card:#0e1322;--bg-modal:#131a2e;--bg-input:#182040;
+      --accent:#3b82f6;--cyan:#06b6d4;--aurora1:#3b82f6;--aurora2:#06b6d4;--aurora3:#a855f7;
+      --hotspot:#f59e0b;--hotspot-glow:rgba(245,158,11,.4);
+      --label-color:#06b6d4;--label-glow:rgba(6,182,212,.4);
+      --text:#f1f5f9;--text-dim:#94a3b8;--danger:#ef4444;--success:#22c55e;
+      --radius:12px;--panel-w:280px
+    }
+    html,body{height:100%;width:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+    button{font-family:inherit}
+
+    /* ═══ GALLERY ═══ */
+    #gallery-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;overflow-y:auto;transition:opacity .4s,visibility .4s}
+    #gallery-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .gallery-header{padding:2rem 1.5rem 1rem;text-align:center;width:100%;max-width:700px}
+    .gallery-header img{max-width:min(60vw,280px);margin-bottom:.5rem}
+    .gallery-header .slogan{font-size:.75rem;color:var(--text-dim);letter-spacing:.02em;margin-bottom:1.5rem}
+    .gallery-title{font-size:1.1rem;font-weight:800;margin-bottom:.3rem}
+    .gallery-subtitle{font-size:.78rem;color:var(--text-dim)}
+    .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;padding:1.5rem;width:100%;max-width:700px}
+    .gallery-card{background:var(--bg-card);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden;cursor:pointer;transition:all .25s;display:flex;flex-direction:column}
+    .gallery-card:hover{border-color:var(--accent);transform:translateY(-4px);box-shadow:0 12px 30px rgba(59,130,246,.15)}
+    .gallery-card:active{transform:scale(.97)}
+    .gallery-icon{height:100px;display:flex;align-items:center;justify-content:center;font-size:3rem;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(168,85,247,.08))}
+    .gallery-info{padding:.8rem;flex:1}
+    .gallery-name{font-size:.82rem;font-weight:700;margin-bottom:.2rem}
+    .gallery-desc{font-size:.65rem;color:var(--text-dim);line-height:1.4}
+    .gallery-loading{padding:3rem;text-align:center;color:var(--text-dim);font-size:.85rem}
+
+    /* ═══ VIEWER (3D) ═══ */
+    #viewer-screen{display:flex;height:100dvh;width:100%}
+    #viewer-screen.hidden{display:none}
+
+    #panel{width:var(--panel-w);min-width:var(--panel-w);background:var(--bg-card);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;overflow:hidden;z-index:20;transition:margin-left .3s}
+    #panel.collapsed{margin-left:calc(var(--panel-w)*-1)}
+    .panel-header{padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+    .panel-brand{font-size:.85rem;font-weight:900;letter-spacing:.04em;background:linear-gradient(135deg,var(--aurora1),var(--aurora2),var(--aurora3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .panel-sub{font-size:.55rem;color:var(--text-dim);font-weight:600}
+    .panel-close{width:28px;height:28px;border-radius:8px;border:none;background:rgba(255,255,255,.06);color:var(--text-dim);font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .panel-tabs{display:flex;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06)}
+    .panel-tab{flex:1;padding:.6rem .4rem;text-align:center;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);background:none;border:none;border-bottom:2.5px solid transparent;cursor:pointer;transition:all .2s;font-family:inherit}
+    .panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .panel-tab.active[data-tab="innov"]{color:var(--hotspot);border-bottom-color:var(--hotspot)}
+    .panel-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.03)}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .panel-body{flex:1;overflow-y:auto;padding:.8rem;scrollbar-width:thin}
+    .panel-body::-webkit-scrollbar{width:4px}
+    .panel-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .innov-sidebar-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .6rem;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:.3rem}
+    .innov-sidebar-item:hover{background:rgba(245,158,11,.12)}
+    .innov-sidebar-item .innov-s-num{width:28px;height:28px;border-radius:50%;background:var(--hotspot);color:#111;font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(245,158,11,.3)}
+    .innov-sidebar-item .innov-s-info{flex:1;min-width:0}
+    .innov-sidebar-item .innov-s-name{font-size:.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .innov-sidebar-item .innov-s-desc{font-size:.6rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .innov-sidebar-empty{font-size:.72rem;color:var(--text-dim);text-align:center;padding:1.5rem .5rem}
+    .panel-footer{padding:.5rem .8rem;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
+    .back-btn{display:flex;align-items:center;justify-content:center;gap:.3rem;width:100%;padding:.45rem;border-radius:var(--radius);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text-dim);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s}
+    .back-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+    .section{margin-bottom:1rem}
+    .section-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:.5rem}
+
+    .group-card{border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);margin-bottom:.5rem;overflow:hidden}
+    .group-header{display:flex;align-items:center;gap:.4rem;padding:.45rem .6rem;background:rgba(255,255,255,.03);cursor:pointer}
+    .group-header .g-check{width:15px;height:15px;accent-color:var(--aurora3);cursor:pointer}
+    .group-header .g-name{flex:1;font-size:.75rem;font-weight:700}
+    .group-header .g-count{font-size:.6rem;color:var(--text-dim)}
+    .group-items{padding:.25rem .5rem .4rem}
+    .gi-row{display:flex;align-items:center;gap:.4rem;padding:.2rem 0;font-size:.7rem}
+    .gi-row .gi-check{width:14px;height:14px;accent-color:var(--accent);cursor:pointer}
+    .gi-row .gi-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .gi-row .gi-dot.comp{background:var(--hotspot)}
+    .gi-row .gi-dot.lbl{background:var(--label-color)}
+    .gi-row .gi-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    #main-area{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:.4rem .8rem;background:var(--bg-card);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;z-index:10}
+    .topbar-left{display:flex;align-items:center;gap:.5rem}
+    .toggle-btn{width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text-dim);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .proj-name{font-weight:700;font-size:.85rem}
+    .viewer-badge{padding:.15rem .5rem;border-radius:50px;font-size:.6rem;font-weight:700;background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:var(--aurora3)}
+
+    #scene-container{flex:1;position:relative;overflow:hidden}
+    #canvas{width:100%;height:100%;display:block;touch-action:none}
+    #hotspot-layer{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+    .loading-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,8,15,.85);z-index:4}
+    .loading-overlay.visible{display:flex}
+    .load-spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .load-text{margin-top:.8rem;font-size:.85rem;color:var(--text-dim)}
+
+    .hs-3d{position:absolute;transform:translateY(-50%);display:flex;align-items:center;gap:.3rem;pointer-events:auto;cursor:pointer;border:none;background:none;padding:0;transition:opacity .3s;z-index:6}
+    .hs-3d.hs-comp{margin-left:-18px}.hs-3d.hs-label{margin-left:-7px}
+    .hs-3d.behind{opacity:0;pointer-events:none}
+    .hs-3d.hidden-item{display:none!important}
+    .hs-3d .dot{border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-weight:800;color:#111;flex-shrink:0}
+    .hs-3d .dot.comp-dot{width:32px;height:32px;font-size:.75rem;background:var(--hotspot);box-shadow:0 0 0 0 var(--hotspot-glow);animation:pulse3d 2.5s ease-in-out infinite}
+    .hs-3d .dot.label-dot{width:12px;height:12px;font-size:0;background:var(--label-color);box-shadow:0 0 0 0 var(--label-glow);animation:pulseLabel 2.5s ease-in-out infinite}
+    .hs-3d .tag{background:var(--bg-card);border:1px solid rgba(255,255,255,.12);padding:.15rem .45rem;border-radius:6px;font-family:'Inter',sans-serif;font-size:.65rem;font-weight:600;color:var(--text);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+    @keyframes pulse3d{0%{box-shadow:0 0 0 0 var(--hotspot-glow)}50%{box-shadow:0 0 0 10px rgba(245,158,11,0)}100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}}
+    @keyframes pulseLabel{0%{box-shadow:0 0 0 0 var(--label-glow)}50%{box-shadow:0 0 0 8px rgba(6,182,212,0)}100%{box-shadow:0 0 0 0 rgba(6,182,212,0)}}
+
+    #innov-panel{position:absolute;top:12px;right:12px;z-index:8;background:rgba(14,19,34,.85);backdrop-filter:blur(12px);border:1px solid rgba(245,158,11,.15);border-radius:14px;min-width:180px;max-width:260px;overflow:hidden;transition:all .3s;display:none}
+    #innov-panel.visible{display:block}
+    #innov-panel.collapsed .innov-list{display:none}
+    .innov-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;cursor:pointer;user-select:none}
+    .innov-title{font-size:.72rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;background:linear-gradient(135deg,var(--hotspot),#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .innov-toggle{font-size:.7rem;color:var(--text-dim);transition:transform .3s}
+    #innov-panel.collapsed .innov-toggle{transform:rotate(-90deg)}
+    .innov-list{padding:0 .4rem .5rem}
+    .innov-item{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:8px;cursor:pointer;transition:background .15s;font-size:.75rem}
+    .innov-item:hover{background:rgba(245,158,11,.12)}
+    .innov-num{width:26px;height:26px;border-radius:50%;background:var(--hotspot);color:#111;font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(245,158,11,.3)}
+    .innov-name{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    #desc-popup{position:fixed;z-index:60;background:var(--bg-modal);border:1px solid rgba(6,182,212,.3);border-radius:12px;padding:.7rem .9rem;max-width:280px;min-width:140px;display:none;box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 15px rgba(6,182,212,.1)}
+    #desc-popup.show{display:block}
+    #desc-popup .dp-title{font-size:.78rem;font-weight:700;margin-bottom:.25rem;color:var(--label-color)}
+    #desc-popup .dp-text{font-size:.72rem;color:var(--text-dim);line-height:1.45}
+    #desc-popup .dp-close{position:absolute;top:5px;right:7px;width:18px;height:18px;border:none;background:none;color:var(--text-dim);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    #desc-popup .dp-media-btn{display:none;align-items:center;gap:.3rem;margin-top:.4rem;padding:.3rem .6rem;border-radius:8px;border:1px solid rgba(6,182,212,.3);background:rgba(6,182,212,.12);color:var(--label-color);font-size:.68rem;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s}
+    #desc-popup .dp-media-btn:hover{background:rgba(6,182,212,.25)}
+    #desc-popup .dp-media-btn.visible{display:inline-flex}
+
+    #modal-overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s}
+    #modal-overlay.open{opacity:1;visibility:visible}
+    .modal-card{width:min(92vw,650px);max-height:90dvh;background:var(--bg-modal);border-radius:16px;border:1px solid rgba(255,255,255,.08);overflow:hidden;transform:translateY(30px) scale(.95);transition:transform .4s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column}
+    #modal-overlay.open .modal-card{transform:translateY(0) scale(1)}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-bottom:1px solid rgba(255,255,255,.06)}
+    .modal-header-left{display:flex;align-items:center;gap:.5rem}
+    .modal-number{width:28px;height:28px;border-radius:50%;background:var(--hotspot);color:#111;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center}
+    .modal-title{font-size:.95rem;font-weight:700}
+    .modal-close{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:var(--text-dim);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .modal-video-wrapper{position:relative;background:#000;aspect-ratio:16/9;width:100%}
+    .modal-video-wrapper video{width:100%;height:100%;object-fit:contain;display:block}
+    .video-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.6);transition:opacity .3s}
+    .video-loading.hidden{opacity:0;pointer-events:none}
+    .video-loading .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    .video-error{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.8);color:var(--danger);font-size:.78rem;text-align:center}
+    .video-error.show{display:flex}
+    .modal-body{padding:.7rem 1rem 1rem;overflow-y:auto}
+    .modal-description{color:var(--text-dim);font-size:.82rem;line-height:1.5}
+
+    .ob-tip{position:fixed;z-index:90;padding:.55rem .9rem;border-radius:12px;font-size:.75rem;font-weight:600;line-height:1.4;max-width:240px;opacity:0;visibility:hidden;transform:translateY(6px);transition:all .4s;color:#fff}
+    .ob-tip.show{opacity:1;visibility:visible;transform:translateY(0)}
+    .ob-tip .ob-dismiss{display:inline-block;margin-top:.3rem;font-size:.62rem;opacity:.8;cursor:pointer;text-decoration:underline}
+    .ob-tip::before{content:'';position:absolute;width:12px;height:12px;transform:rotate(45deg);border-radius:2px}
+    #onboard-tip1{top:120px;left:16px;background:var(--accent);box-shadow:0 8px 25px rgba(59,130,246,.4)}
+    #onboard-tip1::before{top:-6px;left:30px;background:var(--accent)}
+    #onboard-tip2{top:120px;left:130px;background:var(--hotspot);box-shadow:0 8px 25px rgba(245,158,11,.4)}
+    #onboard-tip2::before{top:-6px;left:30px;background:var(--hotspot)}
+    #onboard-tip2 .ob-dismiss{color:#fff}
+
+    @media(max-width:768px){#panel{position:fixed;left:0;top:0;bottom:0;z-index:30}#onboard-tip1{left:10px;top:120px}#onboard-tip2{left:120px;top:120px}}
+  </style>
+</head>
+<body>
+  <!-- ═══ GALLERY SCREEN ═══ -->
+  <div id="gallery-screen">
+    <div class="gallery-header">
+      <img src="assets/aurora-logo.png" alt="AURORA 3D">
+      <div class="slogan">Haciendo visible lo que antes no se entendía</div>
+      <div class="gallery-title">Explora nuestros modelos</div>
+      <div class="gallery-subtitle">Selecciona un proyecto para explorar en 3D</div>
+    </div>
+    <div class="gallery-grid" id="gallery-grid">
+      <div class="gallery-loading" id="gallery-loading">Cargando proyectos...</div>
+    </div>
+  </div>
+
+  <!-- ═══ VIEWER SCREEN ═══ -->
+  <div id="viewer-screen" class="hidden">
+    <aside id="panel">
+      <div class="panel-header">
+        <div><span class="panel-brand">AURORA 3D</span><br><span class="panel-sub">VISOR INTERACTIVO</span></div>
+        <button class="panel-close" id="close-panel">✕</button>
+      </div>
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-tab="comp">Componentes</button>
+        <button class="panel-tab" data-tab="innov">Innovaciones</button>
+      </div>
+      <div class="panel-body">
+        <div class="tab-content active" id="tab-comp">
+          <div class="section" id="groups-section"></div>
+          <div class="section" id="ungrouped-section"></div>
+        </div>
+        <div class="tab-content" id="tab-innov">
+          <div id="innov-sidebar-list"></div>
+        </div>
+      </div>
+      <div class="panel-footer">
+        <button class="back-btn" id="back-btn">← Volver a proyectos</button>
+      </div>
+    </aside>
+    <div id="main-area">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="toggle-btn" id="open-panel">☰</button>
+          <span class="proj-name" id="proj-name">AURORA 3D</span>
+        </div>
+        <span class="viewer-badge">VISOR</span>
+      </div>
+      <div class="ob-tip" id="onboard-tip1">Activa los componentes del robot desde esta pestaña ↑<br><span class="ob-dismiss" id="ob-dismiss1">Entendido</span></div>
+      <div class="ob-tip" id="onboard-tip2">Explora las innovaciones y estrategia desde esta pestaña ↑<br><span class="ob-dismiss" id="ob-dismiss2">Entendido</span></div>
+      <div id="scene-container">
+        <canvas id="canvas"></canvas>
+        <div id="hotspot-layer"></div>
+        <div id="innov-panel"><div class="innov-header" id="innov-toggle-btn"><span class="innov-title">Innovaciones</span><span class="innov-toggle">▼</span></div><div class="innov-list" id="innov-list"></div></div>
+        <div class="loading-overlay" id="loading-3d"><div class="load-spinner"></div><span class="load-text" id="load-text">Cargando...</span></div>
+      </div>
+    </div>
+
+    <div id="desc-popup"><button class="dp-close">×</button><div class="dp-title"></div><div class="dp-text"></div><button class="dp-media-btn" id="dp-media-btn">▶ Ver video</button></div>
+    <div id="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header"><div class="modal-header-left"><span class="modal-number" id="modal-num"></span><span class="modal-title" id="modal-title"></span></div><button class="modal-close" id="modal-close">×</button></div>
+        <div class="modal-video-wrapper"><video id="modal-video" playsinline controls preload="none"></video><div class="video-loading" id="video-loading"><div class="spinner"></div><span>Cargando video...</span></div><div class="video-error" id="video-error"><span>No se pudo cargar el video.</span></div></div>
+        <div class="modal-body"><p class="modal-description" id="modal-desc"></p></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"}}
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+    import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+    import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+    import {MTLLoader} from 'three/addons/loaders/MTLLoader.js';
+    import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
+
+    const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+
+    let model=null;
+    let components=[], labels=[], groups=[], cloudinaryBase='';
+    let overlayEls=[], overlayPos=[], overlayItems=[];
+    let threeReady=false;
+
+    // ─── Three.js (lazy init) ───
+    let container,canvas,scene,camera,renderer,controls;
+    function initThree(){
+      if(threeReady)return;threeReady=true;
+      container=$('#scene-container');canvas=$('#canvas');
+      scene=new THREE.Scene();
+      camera=new THREE.PerspectiveCamera(45,1,0.01,1000);camera.position.set(0,0.4,1.2);
+      renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+      renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.5;renderer.outputColorSpace=THREE.SRGBColorSpace;
+      scene.add(new THREE.AmbientLight(0xffffff,0.8));
+      const d1=new THREE.DirectionalLight(0xffffff,1.2);d1.position.set(5,10,7);scene.add(d1);
+      const d2=new THREE.DirectionalLight(0xffffff,0.4);d2.position.set(-5,5,-5);scene.add(d2);
+      scene.add(new THREE.HemisphereLight(0x87CEEB,0x444444,0.5));
+      controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.08;
+      function onResize(){const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}
+      window.addEventListener('resize',onResize);new ResizeObserver(onResize).observe(container);
+      setTimeout(onResize,50);
+      (function anim(){requestAnimationFrame(anim);controls.update();renderer.render(scene,camera);updateOverlayPositions()})();
+    }
+
+    function parseVec3(s){const p=s.trim().split(/\s+/).map(Number);return new THREE.Vector3(p[0],p[1],p[2])}
+    function clearModel(){if(model&&scene){scene.remove(model);model=null}}
+    function centerAndScale(o){const b=new THREE.Box3().setFromObject(o),c=b.getCenter(new THREE.Vector3()),sz=b.getSize(new THREE.Vector3()),m=Math.max(sz.x,sz.y,sz.z);if(!m)return;const s=0.6/m;o.position.sub(c.multiplyScalar(s));o.scale.multiplyScalar(s);const nb=new THREE.Box3().setFromObject(o),nc=nb.getCenter(new THREE.Vector3());controls.target.copy(nc);camera.position.set(nc.x,nc.y+0.36,nc.z+1.08)}
+
+    async function loadModelFromUrl(url){
+      $('#load-text').textContent='Descargando modelo 3D...';$('#loading-3d').classList.add('visible');
+      try{
+        clearModel();
+        if(url.match(/\.(glb|gltf)$/i)){
+          model=await new Promise((res,rej)=>new GLTFLoader().load(url,g=>res(g.scene),null,rej));
+        }else if(url.match(/\.obj$/i)){
+          const text=await(await fetch(url)).text();model=new OBJLoader().parse(text);
+        }else if(url.match(/\.dae$/i)){
+          model=await new Promise((res,rej)=>new ColladaLoader().load(url,c=>res(c.scene),null,rej));
+        }
+        if(model){scene.add(model);centerAndScale(model);rebuildOverlays()}
+      }catch(e){console.error('Error cargando modelo:',e)}
+      $('#loading-3d').classList.remove('visible');
+    }
+
+    // ─── Overlays ───
+    function rebuildOverlays(){
+      const layer=$('#hotspot-layer');layer.innerHTML='';overlayEls=[];overlayPos=[];overlayItems=[];
+      labels.forEach((l,i)=>{
+        const oi={item:l,type:'label',idx:i};const pos=parseVec3(l.posicion);overlayPos.push(pos);overlayItems.push(oi);
+        const btn=document.createElement('button');btn.className='hs-3d hs-label';if(!l.visible)btn.classList.add('hidden-item');
+        btn.innerHTML=`<span class="dot label-dot"></span><span class="tag">${l.nombre}</span>`;
+        btn.addEventListener('click',e=>{e.stopPropagation();showDescPopup(l,e.clientX,e.clientY)});
+        layer.appendChild(btn);overlayEls.push(btn);
+      });
+      rebuildInnovationsPanel();renderGroupPanel();
+    }
+    function rebuildInnovationsPanel(){
+      const panel=$('#innov-panel'),list=$('#innov-list');list.innerHTML='';
+      if(!components.length){panel.classList.remove('visible');return}
+      panel.classList.add('visible');
+      components.forEach((c,i)=>{const row=document.createElement('div');row.className='innov-item';row.innerHTML=`<span class="innov-num">${i+1}</span><span class="innov-name">${c.nombre}</span>`;row.addEventListener('click',()=>{if(c.video)openMediaModal(c,i+1)});list.appendChild(row)});
+      renderInnovSidebar();
+    }
+    function renderInnovSidebar(){
+      const list=$('#innov-sidebar-list');if(!list)return;list.innerHTML='';
+      if(!components.length){list.innerHTML='<div class="innov-sidebar-empty">No hay innovaciones en este proyecto</div>';return}
+      components.forEach((c,i)=>{const row=document.createElement('div');row.className='innov-sidebar-item';row.innerHTML=`<span class="innov-s-num">${i+1}</span><div class="innov-s-info"><div class="innov-s-name">${c.nombre}</div><div class="innov-s-desc">${c.descripcion||''}</div></div>`;row.addEventListener('click',()=>{if(c.video)openMediaModal(c,i+1)});list.appendChild(row)});
+    }
+    function updateOverlayPositions(){
+      if(!model||!overlayPos.length||!container)return;const w=container.clientWidth,h=container.clientHeight;
+      const camDir=controls.target.clone().sub(camera.position).normalize();
+      overlayPos.forEach((wp,i)=>{const p=wp.clone().project(camera);const toOv=wp.clone().sub(controls.target).normalize();const behind=p.z>1||camDir.dot(toOv)>0.15;const el=overlayEls[i];if(!el)return;el.style.left=((p.x*0.5+0.5)*w)+'px';el.style.top=((-p.y*0.5+0.5)*h)+'px';el.classList.toggle('behind',behind)});
+    }
+
+    let _dpMediaItem=null;
+    function showDescPopup(item,x,y){
+      const dp=$('#desc-popup'),mbtn=$('#dp-media-btn');
+      dp.querySelector('.dp-title').textContent=item.nombre;
+      dp.querySelector('.dp-text').textContent=item.descripcion||'Sin descripción';
+      _dpMediaItem=item.video?item:null;
+      mbtn.classList.toggle('visible',!!item.video);
+      dp.style.left=Math.min(x+10,window.innerWidth-290)+'px';
+      dp.style.top=Math.min(y+10,window.innerHeight-120)+'px';
+      dp.classList.add('show');
+    }
+    function hideDescPopup(){$('#desc-popup').classList.remove('show');_dpMediaItem=null}
+    function openMediaModal(item,num){
+      if(!item||!item.video)return;
+      $('#modal-num').textContent=num||'';
+      $('#modal-title').textContent=item.nombre;
+      $('#modal-desc').textContent=item.descripcion;
+      const vid=$('#modal-video'),ld=$('#video-loading'),er=$('#video-error');
+      ld.classList.remove('hidden');er.classList.remove('show');
+      let url=item.video;if(!url.startsWith('http')&&cloudinaryBase)url=cloudinaryBase+url;
+      vid.src=url;vid.oncanplay=()=>ld.classList.add('hidden');
+      vid.onerror=()=>{ld.classList.add('hidden');er.classList.add('show')};
+      vid.load();vid.play().catch(()=>{});
+      $('#modal-overlay').classList.add('open');hideDescPopup();
+    }
+    function closeVideoModal(){const v=$('#modal-video');$('#modal-overlay').classList.remove('open');v.pause();v.removeAttribute('src');v.load()}
+
+    function renderGroupPanel(){
+      const gsec=$('#groups-section'),usec=$('#ungrouped-section');gsec.innerHTML='';usec.innerHTML='';
+      const ungrouped=[...components.filter(c=>!c.group),...labels.filter(l=>!l.group)];
+      if(groups.length){
+        gsec.innerHTML='<div class="section-title">Grupos</div>';
+        groups.forEach(grp=>{
+          const members=[...components.filter(c=>c.group===grp.id),...labels.filter(l=>l.group===grp.id)];
+          const allVis=members.length>0&&members.every(m=>m.visible);
+          const card=document.createElement('div');card.className='group-card';
+          let ih=members.map(m=>{const isC=components.includes(m);return `<div class="gi-row"><input type="checkbox" class="gi-check" data-id="${m.id}" ${m.visible?'checked':''}><span class="gi-dot ${isC?'comp':'lbl'}"></span><span class="gi-name">${m.nombre}</span></div>`}).join('');
+          if(!members.length)ih='<div style="font-size:.6rem;color:var(--text-dim);padding:.2rem">Vacío</div>';
+          card.innerHTML=`<div class="group-header"><input type="checkbox" class="g-check" ${allVis?'checked':''}><span class="g-name">${grp.nombre}</span><span class="g-count">${members.length}</span></div><div class="group-items">${ih}</div>`;
+          card.querySelector('.g-check').addEventListener('change',e=>{members.forEach(m=>m.visible=e.target.checked);rebuildOverlays()});
+          card.querySelectorAll('.gi-check').forEach(cb=>cb.addEventListener('change',e=>{const id=e.target.dataset.id;const m=[...components,...labels].find(x=>x.id===id);if(m){m.visible=e.target.checked;rebuildOverlays()}}));
+          gsec.appendChild(card);
+        });
+      }
+      if(ungrouped.length){
+        usec.innerHTML='<div class="section-title">Sin Grupo</div>';
+        ungrouped.forEach(m=>{const isC=components.includes(m);const row=document.createElement('div');row.className='gi-row';row.innerHTML=`<input type="checkbox" class="gi-check" ${m.visible?'checked':''}><span class="gi-dot ${isC?'comp':'lbl'}"></span><span class="gi-name">${m.nombre}</span>`;row.querySelector('.gi-check').addEventListener('change',e=>{m.visible=e.target.checked;rebuildOverlays()});usec.appendChild(row)});
+      }
+    }
+
+    // ─── Gallery ───
+    async function loadGallery(){
+      const grid=$('#gallery-grid'),loading=$('#gallery-loading');
+      try{
+        const res=await fetch('aurora-projects.json');
+        if(!res.ok)throw new Error('No manifest');
+        const projects=await res.json();
+        grid.innerHTML='';
+        if(!projects.length){loading.textContent='No hay proyectos disponibles.';grid.appendChild(loading);return}
+        projects.forEach(p=>{
+          const card=document.createElement('div');card.className='gallery-card';
+          card.innerHTML=`<div class="gallery-icon">${p.icon||'🤖'}</div><div class="gallery-info"><div class="gallery-name">${p.name}</div><div class="gallery-desc">${p.description||''}</div></div>`;
+          card.addEventListener('click',()=>openProject(p.file));
+          grid.appendChild(card);
+        });
+      }catch(e){
+        loading.textContent='No se encontró la lista de proyectos.';
+        console.error(e);
+      }
+    }
+
+    async function openProject(file){
+      try{
+        const res=await fetch(file);if(!res.ok)throw new Error('404');
+        const proj=await res.json();
+        components=proj.components||[];labels=proj.labels||[];groups=proj.groups||[];cloudinaryBase=proj.cloudinaryBase||'';
+        components.forEach(c=>{if(c.visible===undefined)c.visible=true});
+        labels.forEach(l=>{l.visible=false});
+        $('#proj-name').textContent=proj.name||'AURORA 3D';
+        document.title=`${proj.name||'AURORA 3D'} — Visor`;
+        $('#gallery-screen').classList.add('hidden');
+        $('#viewer-screen').classList.remove('hidden');
+        initThree();
+        setTimeout(()=>{
+          const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);
+        },100);
+        rebuildOverlays();
+        if(proj.modelUrl)await loadModelFromUrl(proj.modelUrl);
+      }catch(e){alert('No se pudo cargar el proyecto: '+file);console.error(e)}
+    }
+
+    function backToGallery(){
+      clearModel();
+      components=[];labels=[];groups=[];
+      overlayEls=[];overlayPos=[];overlayItems=[];
+      $('#hotspot-layer').innerHTML='';
+      $('#viewer-screen').classList.add('hidden');
+      $('#gallery-screen').classList.remove('hidden');
+    }
+
+    // ─── Init ───
+    const params=new URLSearchParams(window.location.search);
+    const directProject=params.get('project');
+    if(directProject){
+      $('#gallery-screen').classList.add('hidden');
+      $('#viewer-screen').classList.remove('hidden');
+      initThree();
+      setTimeout(()=>{openProject(directProject)},50);
+    }else{
+      loadGallery();
+    }
+
+    // ─── Wiring ───
+    $('#close-panel').addEventListener('click',()=>{$('#panel').classList.add('collapsed');setTimeout(()=>{if(container){const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}},350)});
+    $('#open-panel').addEventListener('click',()=>{$('#panel').classList.remove('collapsed');setTimeout(()=>{if(container){const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}},350)});
+    $('#back-btn').addEventListener('click',backToGallery);
+    $('#modal-close').addEventListener('click',closeVideoModal);
+    $('#modal-overlay').addEventListener('click',e=>{if(e.target===$('#modal-overlay'))closeVideoModal()});
+    $('#innov-toggle-btn').addEventListener('click',()=>$('#innov-panel').classList.toggle('collapsed'));
+    document.addEventListener('click',e=>{if(!e.target.closest('#desc-popup')&&!e.target.closest('.hs-3d'))hideDescPopup()});
+    $('#desc-popup').querySelector('.dp-close').addEventListener('click',hideDescPopup);
+    $('#dp-media-btn').addEventListener('click',()=>{if(_dpMediaItem)openMediaModal(_dpMediaItem,'●')});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVideoModal();hideDescPopup()}});
+
+    // ─── Tabs ───
+    $$('.panel-tab').forEach(tab=>tab.addEventListener('click',()=>{
+      $$('.panel-tab').forEach(t=>t.classList.remove('active'));
+      $$('.tab-content').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const target=$('#tab-'+tab.dataset.tab);if(target)target.classList.add('active');
+    }));
+
+    // ─── Onboarding popup (2 pasos) ───
+    const OB_KEY='aurora3d_onboard_v3';
+    function showOnboard(){
+      if(localStorage.getItem(OB_KEY))return;
+      $('#panel').classList.remove('collapsed');
+      setTimeout(()=>{const t1=$('#onboard-tip1');if(t1)t1.classList.add('show')},1800);
+    }
+    function dismissStep1(){
+      const t1=$('#onboard-tip1');if(t1)t1.classList.remove('show');
+      const innovTab=$('.panel-tab[data-tab="innov"]');
+      if(innovTab){innovTab.click()}
+      setTimeout(()=>{const t2=$('#onboard-tip2');if(t2)t2.classList.add('show')},500);
+    }
+    function dismissStep2(){
+      localStorage.setItem(OB_KEY,'1');
+      const t2=$('#onboard-tip2');if(t2)t2.classList.remove('show');
+      const compTab=$('.panel-tab[data-tab="comp"]');
+      if(compTab){compTab.click()}
+    }
+    $('#ob-dismiss1').addEventListener('click',dismissStep1);
+    $('#ob-dismiss2').addEventListener('click',dismissStep2);
+    showOnboard();
+  </script>
+</body>
+</html>
